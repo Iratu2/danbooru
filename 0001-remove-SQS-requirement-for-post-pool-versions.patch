@@ -1,0 +1,731 @@
+From ff16da7b763ef259fdedac1433198f35f4b11dc4 Mon Sep 17 00:00:00 2001
+From: Talulah <talulah@reunion.is>
+Date: Sun, 9 Oct 2022 19:12:46 -0300
+Subject: [PATCH] remove SQS requirement for post/pool versions
+
+---
+ app/controllers/pool_versions_controller.rb   | 15 ----
+ app/controllers/post_versions_controller.rb   | 16 ----
+ .../moderator/dashboard/queries/tag.rb        |  2 -
+ app/logical/related_tag_query.rb              |  2 +-
+ app/logical/sqs_service.rb                    | 45 -----------
+ app/models/pool.rb                            | 75 +++++++++++++++++--
+ app/models/pool_version.rb                    | 39 ----------
+ app/models/post.rb                            | 75 +++++++++++++++++--
+ app/models/post_version.rb                    | 45 -----------
+ app/models/user.rb                            |  4 +-
+ app/presenters/user_presenter.rb              |  6 +-
+ app/views/pools/_secondary_links.html.erb     |  8 +-
+ app/views/post_versions/index.html.erb        |  4 -
+ app/views/static/site_map.html.erb            |  4 +-
+ app/views/users/_statistics.html.erb          | 10 +--
+ test/test_helper.rb                           |  5 --
+ test/test_helpers/pool_archive_test_helper.rb | 30 --------
+ test/test_helpers/post_archive_test_helper.rb | 42 -----------
+ 18 files changed, 148 insertions(+), 279 deletions(-)
+ delete mode 100644 app/logical/sqs_service.rb
+ delete mode 100644 test/test_helpers/pool_archive_test_helper.rb
+ delete mode 100644 test/test_helpers/post_archive_test_helper.rb
+
+diff --git a/app/controllers/pool_versions_controller.rb b/app/controllers/pool_versions_controller.rb
+index 567d1b577..5cf96ea51 100644
+--- a/app/controllers/pool_versions_controller.rb
++++ b/app/controllers/pool_versions_controller.rb
+@@ -2,8 +2,6 @@
+ 
+ class PoolVersionsController < ApplicationController
+   respond_to :html, :xml, :json
+-  before_action :check_availabililty
+-  around_action :set_timeout
+ 
+   def index
+     set_version_comparison
+@@ -26,17 +24,4 @@ class PoolVersionsController < ApplicationController
+       @other_version = @pool_version.send(params[:type])
+     end
+   end
+-
+-  private
+-
+-  def set_timeout
+-    PoolVersion.connection.execute("SET statement_timeout = #{CurrentUser.user.statement_timeout}")
+-    yield
+-  ensure
+-    PoolVersion.connection.execute("SET statement_timeout = 0")
+-  end
+-
+-  def check_availabililty
+-    raise NotImplementedError, "Archive service is not configured. Pool versions are not saved." unless PoolVersion.enabled?
+-  end
+ end
+diff --git a/app/controllers/post_versions_controller.rb b/app/controllers/post_versions_controller.rb
+index 0c4fdd852..27d2f0938 100644
+--- a/app/controllers/post_versions_controller.rb
++++ b/app/controllers/post_versions_controller.rb
+@@ -1,8 +1,6 @@
+ # frozen_string_literal: true
+ 
+ class PostVersionsController < ApplicationController
+-  before_action :check_availabililty
+-  around_action :set_timeout
+   respond_to :html, :xml, :json
+   respond_to :js, only: [:undo]
+ 
+@@ -28,18 +26,4 @@ class PostVersionsController < ApplicationController
+ 
+     respond_with(@post_version, location: post_versions_path(search: { post_id: @post_version.post_id }))
+   end
+-
+-  private
+-
+-  def set_timeout
+-    PostVersion.connection.execute("SET statement_timeout = #{CurrentUser.user.statement_timeout}")
+-    yield
+-  ensure
+-    PostVersion.connection.execute("SET statement_timeout = 0")
+-  end
+-
+-  def check_availabililty
+-    return if PostVersion.enabled?
+-    raise NotImplementedError, "Archive service is not configured. Post versions are not saved."
+-  end
+ end
+diff --git a/app/logical/moderator/dashboard/queries/tag.rb b/app/logical/moderator/dashboard/queries/tag.rb
+index cf69dd45d..8f01227ef 100644
+--- a/app/logical/moderator/dashboard/queries/tag.rb
++++ b/app/logical/moderator/dashboard/queries/tag.rb
+@@ -5,8 +5,6 @@ module Moderator
+     module Queries
+       class Tag < ::Struct.new(:user, :count)
+         def self.all(min_date, max_level)
+-          return [] unless PostVersion.enabled?
+-
+           records = PostVersion.where("updated_at > ?", min_date).group(:updater).count.map do |user, count|
+             new(user, count)
+           end
+diff --git a/app/logical/related_tag_query.rb b/app/logical/related_tag_query.rb
+index bd78d13f2..f128cc5f3 100644
+--- a/app/logical/related_tag_query.rb
++++ b/app/logical/related_tag_query.rb
+@@ -67,7 +67,7 @@ class RelatedTagQuery
+ 
+   # Returns the top 20 most frequently added tags within the last 20 edits made by the user in the last hour.
+   def recent_tags(since: 1.hour.ago, max_edits: 20, max_tags: 20)
+-    return [] unless user.present? && PostVersion.enabled?
++    return [] unless user.present?
+ 
+     versions = PostVersion.where(updater_id: user.id).where("updated_at > ?", since).order(id: :desc).limit(max_edits)
+     tags = versions.flat_map(&:added_tags)
+diff --git a/app/logical/sqs_service.rb b/app/logical/sqs_service.rb
+deleted file mode 100644
+index 4ac6fa6f9..000000000
+--- a/app/logical/sqs_service.rb
++++ /dev/null
+@@ -1,45 +0,0 @@
+-# frozen_string_literal: true
+-
+-# A wrapper for the Amazon SQS API. Used by the PostArchive and PoolArchive
+-# service to record post and pool versions.
+-#
+-# @see https://docs.aws.amazon.com/sqs/index.html
+-# @see https://docs.aws.amazon.com/sdk-for-ruby/v3/api/Aws/SQS/Client.html
+-class SqsService
+-  attr_reader :url
+-
+-  # @param url [String] the URL of the Amazon SQS queue
+-  def initialize(url)
+-    @url = url
+-  end
+-
+-  # @return [Boolean] true if the SQS service is configured
+-  def enabled?
+-    Danbooru.config.aws_credentials.set? && url.present?
+-  end
+-
+-  # Sends a message to the Amazon SQS queue.
+-  # @param string [String] the message to send
+-  # @param options [Hash] extra options for the SQS call
+-  # @see https://docs.aws.amazon.com/sdk-for-ruby/v3/api/Aws/SQS/Client.html#send_message-instance_method
+-  def send_message(string, options = {})
+-    return unless enabled?
+-
+-    sqs.send_message(
+-      options.merge(
+-        message_body: string,
+-        queue_url: url
+-      )
+-    )
+-  end
+-
+-  private
+-
+-  # @return [Aws::SQS::Client] the SQS API client object
+-  def sqs
+-    @sqs ||= Aws::SQS::Client.new(
+-      credentials: Danbooru.config.aws_credentials,
+-      region: Danbooru.config.aws_sqs_region
+-    )
+-  end
+-end
+diff --git a/app/models/pool.rb b/app/models/pool.rb
+index 6250c08e7..62dd38bc4 100644
+--- a/app/models/pool.rb
++++ b/app/models/pool.rb
+@@ -15,6 +15,7 @@ class Pool < ApplicationRecord
+   after_save :create_version
+ 
+   has_many :mod_actions, as: :subject, dependent: :destroy
++  has_many :versions, class_name: "PoolVersion", dependent: :destroy
+ 
+   deletable
+   has_dtext_links :description
+@@ -105,7 +106,6 @@ class Pool < ApplicationRecord
+   end
+ 
+   def versions
+-    raise NotImplementedError, "Archive service not configured" unless PoolVersion.enabled?
+     PoolVersion.where(pool_id: id).order("id asc")
+   end
+ 
+@@ -221,12 +221,77 @@ class Pool < ApplicationRecord
+     post_count > 0 ? Post.find(post_ids.first) : nil
+   end
+ 
+-  def create_version(updater: CurrentUser.user)
+-    if PoolVersion.enabled?
+-      PoolVersion.queue(self, updater)
++  def create_version(force = false)
++    if new_record? || saved_change_to_watched_attributes? || force
++      if merge_version?
++        merge_version
++      else
++        create_new_version
++      end
++    end
++  end
++
++  def saved_change_to_watched_attributes?
++    saved_change_to_post_ids? || saved_change_to_name? || saved_change_to_description? || saved_change_to_is_deleted? || saved_change_to_category?
++  end
++
++  def merge_version?
++    prev = versions.last
++    prev && prev.updater_id == CurrentUser.user.id && prev.updated_at > 1.hour.ago
++  end
++
++
++  def merge_version
++    subject = versions.last
++    prev = subject.previous
++
++    if prev
++      added_post_ids   = post_ids - prev.post_ids
++      removed_post_ids = prev.post_ids - post_ids
++    else
++      added_post_ids   = post_ids
++      removed_post_ids = []
++    end
++
++    subject.update(
++      post_ids: post_ids,
++      added_post_ids: added_post_ids,
++      removed_post_ids: removed_post_ids,
++      name: name,
++      description: description,
++      is_active: is_active?,
++      is_deleted: is_deleted?,
++      category: category,
++      )
++  end
++
++  def calculate_version
++    1 + versions.maximum(:version).to_i
++  end
++
++  def create_new_version
++    prev = versions.last
++
++    if prev
++      added_post_ids   = post_ids - prev.post_ids
++      removed_post_ids = prev.post_ids - post_ids
+     else
+-      Rails.logger.warn("Archive service is not configured. Pool versions will not be saved.")
++      added_post_ids   = post_ids
++      removed_post_ids = []
+     end
++
++    versions.create(
++      updater_id: CurrentUser.id,
++      post_ids: post_ids,
++      added_post_ids: added_post_ids,
++      removed_post_ids: removed_post_ids,
++      name: name,
++      description: description,
++      is_active: is_active?,
++      is_deleted: is_deleted?,
++      category: category,
++      version: calculate_version,
++    )
+   end
+ 
+   def last_page
+diff --git a/app/models/pool_version.rb b/app/models/pool_version.rb
+index 99bda8529..13525c634 100644
+--- a/app/models/pool_version.rb
++++ b/app/models/pool_version.rb
+@@ -4,25 +4,11 @@ class PoolVersion < ApplicationRecord
+   belongs_to :updater, :class_name => "User"
+   belongs_to :pool
+ 
+-  def self.enabled?
+-    Rails.env.test? || Danbooru.config.aws_sqs_archives_url.present?
+-  end
+-
+-  def self.database_url
+-    ENV["ARCHIVE_DATABASE_URL"] || ENV["DATABASE_URL"]
+-  end
+-
+-  establish_connection database_url if enabled?
+-
+   module SearchMethods
+     def default_order
+       order(updated_at: :desc)
+     end
+ 
+-    def for_user(user_id)
+-      where(updater_id: user_id)
+-    end
+-
+     def for_post_id(post_id)
+       where_array_includes_any(:added_post_ids, [post_id]).or(where_array_includes_any(:removed_post_ids, [post_id]))
+     end
+@@ -60,31 +46,6 @@ class PoolVersion < ApplicationRecord
+ 
+   extend SearchMethods
+ 
+-  def self.sqs_service
+-    SqsService.new(Danbooru.config.aws_sqs_archives_url)
+-  end
+-
+-  def self.queue(pool, updater)
+-    # queue updates to sqs so that if archives goes down for whatever reason it won't
+-    # block pool updates
+-    raise NotImplementedError, "Archive service is not configured." if !enabled?
+-
+-    json = {
+-      pool_id: pool.id,
+-      post_ids: pool.post_ids,
+-      updater_id: updater.id,
+-      created_at: pool.created_at.try(:iso8601),
+-      updated_at: pool.updated_at.try(:iso8601),
+-      description: pool.description,
+-      name: pool.name,
+-      is_active: pool.is_active?,
+-      is_deleted: pool.is_deleted?,
+-      category: pool.category,
+-    }
+-    msg = "add pool version\n#{json.to_json}"
+-    sqs_service.send_message(msg, message_group_id: "pool:#{pool.id}")
+-  end
+-
+   def self.normalize_name(name)
+     name.gsub(/[_[:space:]]+/, "_").gsub(/\A_|_\z/, "")
+   end
+diff --git a/app/models/post.rb b/app/models/post.rb
+index 13b545691..f41b024a5 100644
+--- a/app/models/post.rb
++++ b/app/models/post.rb
+@@ -88,9 +88,7 @@ class Post < ApplicationRecord
+   scope :has_notes, -> { where.not(last_noted_at: nil) }
+   scope :for_user, ->(user_id) { where(uploader_id: user_id) }
+ 
+-  if PostVersion.enabled?
+-    has_many :versions, -> { Rails.env.test? ? order("post_versions.updated_at ASC, post_versions.id ASC") : order("post_versions.updated_at ASC") }, class_name: "PostVersion", dependent: :destroy
+-  end
++  has_many :versions, -> { Rails.env.test? ? order("post_versions.updated_at ASC, post_versions.id ASC") : order("post_versions.updated_at ASC") }, class_name: "PostVersion", dependent: :destroy
+ 
+   def self.new_from_upload(upload_media_asset, tag_string: nil, rating: nil, parent_id: nil, source: nil, artist_commentary_title: nil, artist_commentary_desc: nil, translated_commentary_title: nil, translated_commentary_desc: nil, is_pending: nil, add_artist_tag: false)
+     upload = upload_media_asset.upload
+@@ -794,7 +792,11 @@ class Post < ApplicationRecord
+     # changes to the post and make saved_change_to_*? return false.
+     def create_version(force = false)
+       if new_record? || saved_change_to_watched_attributes? || force
+-        create_new_version
++        if merge_version?
++          merge_version
++        else
++          create_new_version
++        end
+       end
+     end
+ 
+@@ -803,13 +805,70 @@ class Post < ApplicationRecord
+     end
+ 
+     def merge_version?
+-      prev = versions.last
+-      prev && prev.updater_id == CurrentUser.user.id && prev.updated_at > 1.hour.ago
++      previous = versions.last
++      previous && previous.updater_id == CurrentUser.user.id && previous.updated_at > 1.hour.ago
+     end
+ 
++    def merge_version
++      subject = versions.last
++      previous = subject.previous
++
++      if previous
++        added_tags = tag_array - previous.tag_array
++        removed_tags = previous.tag_array - tag_array
++      else
++        added_tags = tag_array
++        removed_tags = []
++      end
++
++      rating_changed = previous.nil? || rating != previous.rating
++      parent_changed = previous.nil? || parent_id != previous.parent_id
++      source_changed = previous.nil? || source != previous.source
++
++      subject.update(
++        tags: tag_array.join(" "),
++        added_tags: added_tags,
++        removed_tags: removed_tags,
++        updater_id: CurrentUser.id,
++        rating: rating,
++        rating_changed: rating_changed,
++        parent_id: parent_id,
++        parent_changed: parent_changed,
++        source: source,
++        source_changed: source_changed,
++      )
++    end
++
++    def calculate_version
++      1 + versions.maximum(:version).to_i
++    end
++
++
+     def create_new_version
+-      User.where(id: CurrentUser.id).update_all("post_update_count = post_update_count + 1")
+-      PostVersion.queue(self) if PostVersion.enabled?
++      previous = versions.last
++
++      if previous
++        added_tags = tag_array - previous.tag_array
++        removed_tags = previous.tag_array - tag_array
++      else
++        added_tags = tag_array
++        removed_tags = []
++      end
++
++      PostVersion.create(
++        post_id: id,
++        tags: tag_array.join(" "),
++        added_tags: added_tags,
++        removed_tags: removed_tags,
++        updater_id: CurrentUser.id,
++        rating: rating,
++        rating_changed: saved_change_to_rating?,
++        parent_id: parent_id,
++        parent_changed: saved_change_to_parent_id?,
++        source: source,
++        source_changed: saved_change_to_source?,
++        version: calculate_version,
++      )
+     end
+ 
+     def revert_to(target)
+diff --git a/app/models/post_version.rb b/app/models/post_version.rb
+index e8f84d752..d28a2bb66 100644
+--- a/app/models/post_version.rb
++++ b/app/models/post_version.rb
+@@ -7,16 +7,6 @@ class PostVersion < ApplicationRecord
+   belongs_to :post
+   belongs_to_updater counter_cache: "post_update_count"
+ 
+-  def self.enabled?
+-    Rails.env.test? || Danbooru.config.aws_sqs_archives_url.present?
+-  end
+-
+-  def self.database_url
+-    ENV["ARCHIVE_DATABASE_URL"] || ENV["DATABASE_URL"]
+-  end
+-
+-  establish_connection database_url if enabled?
+-
+   module SearchMethods
+     def changed_tags_include(tag)
+       where_array_includes_all(:added_tags, [tag]).or(where_array_includes_all(:removed_tags, [tag]))
+@@ -72,47 +62,12 @@ class PostVersion < ApplicationRecord
+     end
+   end
+ 
+-  module ArchiveServiceMethods
+-    extend ActiveSupport::Concern
+-
+-    class_methods do
+-      def sqs_service
+-        SqsService.new(Danbooru.config.aws_sqs_archives_url)
+-      end
+-
+-      def queue(post)
+-        # queue updates to sqs so that if archives goes down for whatever reason it won't
+-        # block post updates
+-        raise NotImplementedError, "Archive service is not configured" if !enabled?
+-
+-        json = {
+-          "post_id" => post.id,
+-          "rating" => post.rating,
+-          "parent_id" => post.parent_id,
+-          "source" => post.source,
+-          "updater_id" => CurrentUser.id,
+-          "updated_at" => post.updated_at.try(:iso8601),
+-          "created_at" => post.created_at.try(:iso8601),
+-          "tags" => post.tag_string,
+-        }
+-        msg = "add post version\n#{json.to_json}"
+-        sqs_service.send_message(msg, message_group_id: "post:#{post.id}")
+-      end
+-    end
+-  end
+-
+   extend SearchMethods
+-  include ArchiveServiceMethods
+ 
+   def tag_array
+     tags.split
+   end
+ 
+-  def reload
+-    flush_cache
+-    super
+-  end
+-
+   def previous
+     @previous ||= begin
+       # HACK: if all the post versions for this post have already been preloaded,
+diff --git a/app/models/user.rb b/app/models/user.rb
+index 8a08d48e4..09f1ffe81 100644
+--- a/app/models/user.rb
++++ b/app/models/user.rb
+@@ -117,6 +117,7 @@ class User < ApplicationRecord
+   has_many :forum_topic_visits, dependent: :destroy
+   has_many :visited_forum_topics, through: :forum_topic_visits, source: :forum_topic
+   has_many :moderation_reports, as: :model
++  has_many :pool_versions, foreign_key: :updater_id
+   has_many :posts, :foreign_key => "uploader_id"
+   has_many :post_appeals, foreign_key: :creator_id
+   has_many :post_approvals, :dependent => :destroy
+@@ -535,8 +536,7 @@ class User < ApplicationRecord
+     end
+ 
+     def pool_version_count
+-      return nil unless PoolVersion.enabled?
+-      PoolVersion.for_user(id).count
++      pool_versions.count
+     end
+ 
+     def forum_post_count
+diff --git a/app/presenters/user_presenter.rb b/app/presenters/user_presenter.rb
+index fded4c7ab..d3e8cb112 100644
+--- a/app/presenters/user_presenter.rb
++++ b/app/presenters/user_presenter.rb
+@@ -90,11 +90,7 @@ class UserPresenter
+   end
+ 
+   def pool_version_count(template)
+-    if PoolVersion.enabled?
+-      template.link_to(user.pool_version_count, template.pool_versions_path(:search => {:updater_id => user.id}))
+-    else
+-      "N/A"
+-    end
++    template.link_to(user.pool_version_count, template.pool_versions_path(:search => {:updater_id => user.id}))
+   end
+ 
+   def appeal_count(template)
+diff --git a/app/views/pools/_secondary_links.html.erb b/app/views/pools/_secondary_links.html.erb
+index 93e7d0785..f2b3d186e 100644
+--- a/app/views/pools/_secondary_links.html.erb
++++ b/app/views/pools/_secondary_links.html.erb
+@@ -5,9 +5,7 @@
+   <% if policy(Pool).create? %>
+     <%= subnav_link_to "New", new_pool_path %>
+   <% end %>
+-  <% if PoolVersion.enabled? %>
+-    <%= subnav_link_to "Changes", pool_versions_path %>
+-  <% end %>
++  <%= subnav_link_to "Changes", pool_versions_path %>
+   <%= subnav_link_to "Help", wiki_page_path("help:pools") %>
+   <% if @pool && !@pool.new_record? %>
+     <li>|</li>
+@@ -22,9 +20,7 @@
+         <%= subnav_link_to "Delete", pool_path(@pool), :method => :delete, :"data-shortcut" => "shift+d", :"data-confirm" => "Are you sure you want to delete this pool?", :remote => true %>
+       <% end %>
+     <% end %>
+-    <% if PoolVersion.enabled? %>
+-      <%= subnav_link_to "History", pool_versions_path(:search => {:pool_id => @pool.id}) %>
+-    <% end %>
++    <%= subnav_link_to "History", pool_versions_path(:search => {:pool_id => @pool.id}) %>
+     <% if policy(@pool).update? %>
+       <%= subnav_link_to "Order", edit_pool_order_path(@pool) %>
+     <% end %>
+diff --git a/app/views/post_versions/index.html.erb b/app/views/post_versions/index.html.erb
+index 23aaac573..22efacf33 100644
+--- a/app/views/post_versions/index.html.erb
++++ b/app/views/post_versions/index.html.erb
+@@ -22,10 +22,6 @@
+     <% end %>
+ 
+     <%= render "posts/partials/common/inline_blacklist" %>
+-    <p class="fineprint">
+-      Recent updates may not have been processed yet. The
+-      most recently processed version was <%= time_ago_in_words_tagged(PostVersion.maximum(:updated_at) || Time.zone.now) %>.
+-    </p>
+ 
+     <% if @post_versions.length == 0 %>
+       <%= render "post_sets/blank" %>
+diff --git a/app/views/static/site_map.html.erb b/app/views/static/site_map.html.erb
+index b20e8ae0b..decf6a594 100644
+--- a/app/views/static/site_map.html.erb
++++ b/app/views/static/site_map.html.erb
+@@ -64,9 +64,7 @@
+         <li><h2>Pools</h2></li>
+         <li><%= link_to("Pools", pools_path) %></li>
+         <li><%= link_to("Gallery", gallery_pools_path) %></li>
+-        <% if PoolVersion.enabled? %>
+-          <li><%= link_to("History", pool_versions_path) %></li>
+-        <% end %>
++        <li><%= link_to("History", pool_versions_path) %></li>
+         <li><%= link_to_wiki "Help", "help:pools" %></li>
+       </ul>
+ 
+diff --git a/app/views/users/_statistics.html.erb b/app/views/users/_statistics.html.erb
+index bcd530f40..54fe2edc4 100644
+--- a/app/views/users/_statistics.html.erb
++++ b/app/views/users/_statistics.html.erb
+@@ -196,12 +196,10 @@
+         <td><%= presenter.artist_commentary_version_count(self) %></td>
+       </tr>
+ 
+-      <% if PoolVersion.enabled? %>
+-        <tr>
+-          <th>Pool Changes</th>
+-          <td><%= presenter.pool_version_count(self) %></td>
+-        </tr>
+-      <% end %>
++      <tr>
++        <th>Pool Changes</th>
++        <td><%= presenter.pool_version_count(self) %></td>
++      </tr>
+ 
+       <% if Danbooru.config.forum_enabled?.to_s.truthy? %>
+         <tr>
+diff --git a/test/test_helper.rb b/test/test_helper.rb
+index 7b59f7f70..5117adf28 100644
+--- a/test/test_helper.rb
++++ b/test/test_helper.rb
+@@ -25,8 +25,6 @@ Rails.application.load_seed
+ class ActiveSupport::TestCase
+   include ActiveJob::TestHelper
+   include FactoryBot::Syntax::Methods
+-  extend PostArchiveTestHelper
+-  extend PoolArchiveTestHelper
+   include ReportbooruHelper
+   include AutotaggerHelper
+   include DownloadTestHelper
+@@ -36,9 +34,6 @@ class ActiveSupport::TestCase
+   extend StripeTestHelper
+   extend NormalizeAttributeHelper
+ 
+-  mock_post_version_service!
+-  mock_pool_version_service!
+-
+   unless Danbooru.config.debug_mode
+     parallelize
+     parallelize_setup do |worker|
+diff --git a/test/test_helpers/pool_archive_test_helper.rb b/test/test_helpers/pool_archive_test_helper.rb
+deleted file mode 100644
+index acf77d0dd..000000000
+--- a/test/test_helpers/pool_archive_test_helper.rb
++++ /dev/null
+@@ -1,30 +0,0 @@
+-module PoolArchiveTestHelper
+-  def mock_pool_version_service!
+-    setup do
+-      PoolVersion.stubs(:sqs_service).returns(MockPoolSqsService.new)
+-      PoolVersion.establish_connection(PoolVersion.database_url)
+-      PoolVersion.connection.begin_transaction joinable: false
+-    end
+-
+-    teardown do
+-      PoolVersion.connection.rollback_transaction
+-    end
+-  end
+-
+-  class MockPoolSqsService
+-    def send_message(msg, *options)
+-      _, json = msg.split(/\n/)
+-      json = JSON.parse(json)
+-      prev = PoolVersion.where(pool_id: json["pool_id"]).order("id desc").first
+-      if merge?(prev, json)
+-        prev.update_columns(json)
+-      else
+-        PoolVersion.create!(json)
+-      end
+-    end
+-
+-    def merge?(prev, json)
+-      prev && (prev.updater_id == json["updater_id"]) && (prev.updated_at >= 1.hour.ago)
+-    end
+-  end
+-end
+diff --git a/test/test_helpers/post_archive_test_helper.rb b/test/test_helpers/post_archive_test_helper.rb
+deleted file mode 100644
+index 6ff113bd5..000000000
+--- a/test/test_helpers/post_archive_test_helper.rb
++++ /dev/null
+@@ -1,42 +0,0 @@
+-module PostArchiveTestHelper
+-  def mock_post_version_service!
+-    setup do
+-      PostVersion.stubs(:sqs_service).returns(MockPostSqsService.new)
+-      PostVersion.establish_connection(PostVersion.database_url)
+-      PostVersion.connection.begin_transaction joinable: false
+-    end
+-
+-    teardown do
+-      PostVersion.connection.rollback_transaction
+-    end
+-  end
+-
+-  class MockPostSqsService
+-    def send_message(msg, *options)
+-      _, json = msg.split(/\n/)
+-      json = JSON.parse(json)
+-      json.delete("created_at")
+-      json["version"] = 1 + PostVersion.where(post_id: json["post_id"]).count
+-      prev = PostVersion.where(post_id: json["post_id"]).order("id desc").first
+-      if prev
+-        json["added_tags"] = json["tags"].scan(/\S+/) - prev.tags.scan(/\S+/)
+-        json["removed_tags"] = prev.tags.scan(/\S+/) - json["tags"].scan(/\S+/)
+-      else
+-        json["added_tags"] = json["tags"].scan(/\S+/)
+-      end
+-      json["parent_changed"] = (prev.nil? || json.key?("parent_id") && prev.parent_id != json["parent_id"])
+-      json["source_changed"] = (prev.nil? || json.key?("source") && prev.source != json["source"])
+-      json["rating_changed"] = (prev.nil? || json.key?("rating") && prev.rating != json["rating"])
+-      if merge?(prev, json)
+-        prev.update_columns(json)
+-      else
+-        # XXX change this to `create!` and fix tests that don't set current user.
+-        PostVersion.create(json)
+-      end
+-    end
+-
+-    def merge?(prev, json)
+-      prev && (prev.updater_id == json["updater_id"]) && (prev.updated_at >= 1.hour.ago)
+-    end
+-  end
+-end
+-- 
+2.39.0
+
