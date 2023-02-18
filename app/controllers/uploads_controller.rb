@@ -4,6 +4,10 @@ class UploadsController < ApplicationController
   respond_to :html, :xml, :json, :js
   skip_before_action :verify_authenticity_token, only: [:create], if: -> { request.xhr? }
 
+  before_action if: -> { CurrentUser.user.created_at > 7.days.ago } do
+    redirect_back fallback_location: root_path, notice: "You cannot upload, your account needs to be over a week old"
+  end
+  
   def new
     @upload = authorize Upload.new(uploader: CurrentUser.user, source: params[:url], referer_url: params[:ref], **permitted_attributes(Upload))
     respond_with(@upload)

@@ -2,7 +2,9 @@
 
 class ArtistCommentariesController < ApplicationController
   respond_to :html, :xml, :json, :js
-
+  before_action if: -> { CurrentUser.user.created_at > 7.days.ago } do
+    redirect_back fallback_location: root_path, notice: "You cannot do this, your account needs to be over a week old"
+  end
   def index
     @commentaries = authorize ArtistCommentary.paginated_search(params)
     @commentaries = @commentaries.includes(post: [:uploader, :media_asset]) if request.format.html?

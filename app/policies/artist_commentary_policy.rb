@@ -2,7 +2,7 @@
 
 class ArtistCommentaryPolicy < ApplicationPolicy
   def create_or_update?
-    unbanned?
+    unbanned? && user.created_at < 7.days.ago
   end
 
   def revert?

@@ -40,13 +40,17 @@ class CommentsController < ApplicationController
   end
 
   def create
-    @comment = authorize Comment.new(creator: CurrentUser.user, creator_ip_addr: request.remote_ip)
-    @comment.update(permitted_attributes(@comment))
-    flash[:notice] = @comment.valid? ? "Comment posted" : @comment.errors.full_messages.join("; ")
-    respond_with(@comment) do |format|
-      format.html do
-        redirect_back fallback_location: (@comment.post || comments_path)
+    if CurrentUser.user.created_at < 7.days.ago
+      @comment = authorize Comment.new(creator: CurrentUser.user, creator_ip_addr: request.remote_ip)
+      @comment.update(permitted_attributes(@comment))
+      flash[:notice] = @comment.valid? ? "Comment posted" : @comment.errors.full_messages.join("; ")
+      respond_with(@comment) do |format|
+        format.html do
+          redirect_back fallback_location: (@comment.post || comments_path)
+        end
       end
+    else
+      redirect_back fallback_location: comments_path, notice: "Comment not posted, your account needs to be over a week old"
     end
   end
 

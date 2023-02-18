@@ -10,11 +10,11 @@ class PostPolicy < ApplicationPolicy
   end
 
   def update?
-    unbanned? && record.visible?
+    unbanned? && record.visible? && user.created_at < 7.days.ago
   end
 
   def create?
-    unbanned? && record.uploader == user
+    unbanned? && record.uploader == user && user.created_at < 7.days.ago
   end
 
   def revert?
@@ -54,7 +54,7 @@ class PostPolicy < ApplicationPolicy
   end
 
   def expunge?
-    user.is_admin?
+    user.is_moderator?
   end
 
   def visible?
@@ -67,7 +67,7 @@ class PostPolicy < ApplicationPolicy
 
   # whether to show the + - links in the tag list.
   def show_extra_links?
-    user.is_gold?
+    user.is_member?
   end
 
   def permitted_attributes_for_create

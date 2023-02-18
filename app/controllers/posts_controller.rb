@@ -63,11 +63,15 @@ class PostsController < ApplicationController
   end
 
   def update
-    @post = authorize Post.find(params[:id])
-    @post.update(permitted_attributes(@post))
-    @show_votes = (params[:show_votes].presence || cookies[:post_preview_show_votes].presence || "false").truthy?
-    @preview_size = params[:size].presence || cookies[:post_preview_size].presence || PostGalleryComponent::DEFAULT_SIZE
-    respond_with_post_after_update(@post)
+    if CurrentUser.user.created_at < 7.days.ago
+      @post = authorize Post.find(params[:id])
+      @post.update(permitted_attributes(@post))
+      @show_votes = (params[:show_votes].presence || cookies[:post_preview_show_votes].presence || "false").truthy?
+      @preview_size = params[:size].presence || cookies[:post_preview_size].presence || PostGalleryComponent::DEFAULT_SIZE
+      respond_with_post_after_update(@post)
+    else
+      redirect_back fallback_location: root_path, notice: "Post not edited, your account needs to be at least a week old"
+    end
   end
 
   def create

@@ -404,16 +404,16 @@ class User < ApplicationRecord
         if Rails.env.development?
           60_000
         elsif level >= User::Levels::PLATINUM
-          9_000
+          16_000
         elsif level == User::Levels::GOLD
-          6_000
+          16_000
         else
-          3_000
+          16_000
         end
       end
 
       def page_limit(level)
-        if level >= User::Levels::GOLD
+        if level >= User::Levels::MEMBER
           5000
         else
           1000
@@ -427,7 +427,6 @@ class User < ApplicationRecord
           Float::INFINITY
         elsif level == User::Levels::GOLD
           Danbooru.config.tag_query_limit_gold
-          
         elsif level == User::Levels::MEMBER
           Danbooru.config.tag_query_limit_member
         else

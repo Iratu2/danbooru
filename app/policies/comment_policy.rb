@@ -2,7 +2,7 @@
 
 class CommentPolicy < ApplicationPolicy
   def create?
-    unbanned?
+    unbanned? && user.created_at < 7.days.ago
   end
 
   def update?
