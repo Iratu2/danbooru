@@ -73,10 +73,7 @@
   <% end %>
 
   <header id="top">
-    <div id="app-name-header" class="font-bold font-header leading-normal inline-flex items-center gap-1">
-      <%= link_to image_pack_tag("static/images/danbooru-logo-128x128.png"), root_path, id: "app-logo" %>
-      <%= link_to Danbooru.config.app_name, root_path, id: "app-name" %>
-    </div>
+    <a id="app-name-header" class="heading" href="/"><img src="/images/atfbooru_banner.jpg" height="270"></a>
 
     <div id="maintoggle" class="mobile-only">
       <a href="#"><%= menu_icon(id: "maintoggle-on") %></a>

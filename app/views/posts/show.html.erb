@@ -192,6 +192,21 @@
       <li id="post-history-commentary"><%= link_to "Commentary", artist_commentary_versions_path(search: { post_id: @post.id }) %></li>
     </ul>
   </section>
+    <section id="related-box">
+      <h2>Related</h2>
+      <ul id="related-list">
+        <% if discover_mode? %>
+          <li id="secondary-links-posts-hot"><%= link_to "Hot", posts_path(:tags => "order:rank") %></li>
+          <li id="secondary-links-posts-popular"><%= link_to "Popular", popular_explore_posts_path %></li>
+          <li><%= link_to "Searches", searches_explore_posts_path %></li>
+          <li><%= link_to "Viewed", viewed_explore_posts_path %></li>
+        <% end %>
+
+        <li><%= link_to "Deleted", posts_path(tags: "#{params[:q]} status:deleted"), rel: "nofollow" %></li>
+        <li><%= link_to "Random", random_posts_path(tags: params[:q]), id: "random-post", "data-shortcut": "r", rel: "nofollow" %></li>
+        <li><%= link_to "Count", posts_counts_path(tags: params[:q]), rel: "nofollow" %></li>
+      </ul>
+    </section>
 <% end %>
 
 <% content_for(:content) do %>

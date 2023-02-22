@@ -1,7 +1,7 @@
 SET statement_timeout = 0;
 SET lock_timeout = 0;
 SET idle_in_transaction_session_timeout = 0;
-SET client_encoding = 'UTF8';
+SET client_encoding = 'SQL_ASCII';
 SET standard_conforming_strings = on;
 SELECT pg_catalog.set_config('search_path', '', false);
 SET check_function_bodies = false;
@@ -123,6 +123,17 @@ CREATE TABLE public.ai_tags (
 
 
 --
+-- Name: ai_tags_temp; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.ai_tags_temp (
+    media_asset_id integer NOT NULL,
+    tag_id integer NOT NULL,
+    score smallint NOT NULL
+);
+
+
+--
 -- Name: api_keys; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -168,8 +179,8 @@ ALTER SEQUENCE public.api_keys_id_seq OWNED BY public.api_keys.id;
 CREATE TABLE public.ar_internal_metadata (
     key character varying NOT NULL,
     value character varying,
-    created_at timestamp(6) without time zone NOT NULL,
-    updated_at timestamp(6) without time zone NOT NULL
+    created_at timestamp without time zone NOT NULL,
+    updated_at timestamp without time zone NOT NULL
 );
 
 
@@ -661,7 +672,7 @@ CREATE TABLE public.favorites (
 --
 
 CREATE SEQUENCE public.favorites_id_seq
-    START WITH 1
+    START WITH 5234081
     INCREMENT BY 1
     NO MINVALUE
     NO MAXVALUE
@@ -1227,26 +1238,60 @@ ALTER SEQUENCE public.notes_id_seq OWNED BY public.notes.id;
 
 
 --
+-- Name: pixiv_ugoira_frame_data; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.pixiv_ugoira_frame_data (
+    id integer NOT NULL,
+    post_id integer NOT NULL,
+    data text NOT NULL,
+    content_type character varying NOT NULL,
+    md5 text
+);
+
+
+--
+-- Name: pixiv_ugoira_frame_data_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.pixiv_ugoira_frame_data_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: pixiv_ugoira_frame_data_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.pixiv_ugoira_frame_data_id_seq OWNED BY public.pixiv_ugoira_frame_data.id;
+
+
+--
 -- Name: pool_versions; Type: TABLE; Schema: public; Owner: -
 --
 
 CREATE TABLE public.pool_versions (
-    id bigint NOT NULL,
-    created_at timestamp(6) without time zone NOT NULL,
-    updated_at timestamp(6) without time zone NOT NULL,
-    pool_id bigint NOT NULL,
-    updater_id bigint NOT NULL,
-    version integer DEFAULT 1 NOT NULL,
-    name text NOT NULL,
-    description text DEFAULT ''::text NOT NULL,
-    category character varying NOT NULL,
-    is_active boolean DEFAULT true NOT NULL,
-    is_deleted boolean DEFAULT false NOT NULL,
-    description_changed boolean DEFAULT false NOT NULL,
-    name_changed boolean DEFAULT false NOT NULL,
+    id integer NOT NULL,
+    pool_id integer NOT NULL,
     post_ids integer[] DEFAULT '{}'::integer[] NOT NULL,
     added_post_ids integer[] DEFAULT '{}'::integer[] NOT NULL,
-    removed_post_ids integer[] DEFAULT '{}'::integer[] NOT NULL
+    removed_post_ids integer[] DEFAULT '{}'::integer[] NOT NULL,
+    updater_id integer,
+    description text,
+    description_changed boolean DEFAULT false NOT NULL,
+    name text,
+    name_changed boolean DEFAULT false NOT NULL,
+    created_at timestamp without time zone,
+    updated_at timestamp without time zone,
+    version integer DEFAULT 1 NOT NULL,
+    is_active boolean DEFAULT true NOT NULL,
+    "boolean" boolean DEFAULT false NOT NULL,
+    is_deleted boolean DEFAULT false NOT NULL,
+    category character varying
 );
 
 
@@ -1597,21 +1642,20 @@ ALTER SEQUENCE public.post_replacements_id_seq OWNED BY public.post_replacements
 --
 
 CREATE TABLE public.post_versions (
-    id bigint NOT NULL,
-    created_at timestamp(6) without time zone NOT NULL,
-    updated_at timestamp(6) without time zone NOT NULL,
-    post_id bigint NOT NULL,
-    updater_id bigint NOT NULL,
-    version integer DEFAULT 1 NOT NULL,
-    parent_changed boolean DEFAULT false NOT NULL,
-    rating_changed boolean DEFAULT false NOT NULL,
-    source_changed boolean DEFAULT false NOT NULL,
-    parent_id integer,
-    rating character varying(1) NOT NULL,
-    source text DEFAULT ''::text NOT NULL,
-    tags text DEFAULT ''::text NOT NULL,
+    id integer NOT NULL,
+    post_id integer NOT NULL,
+    tags text NOT NULL,
     added_tags text[] DEFAULT '{}'::text[] NOT NULL,
-    removed_tags text[] DEFAULT '{}'::text[] NOT NULL
+    removed_tags text[] DEFAULT '{}'::text[] NOT NULL,
+    updater_id integer,
+    updated_at timestamp without time zone NOT NULL,
+    rating character varying(1),
+    rating_changed boolean DEFAULT false NOT NULL,
+    parent_id integer,
+    parent_changed boolean DEFAULT false NOT NULL,
+    source text,
+    source_changed boolean DEFAULT false NOT NULL,
+    version integer DEFAULT 1 NOT NULL
 );
 
 
@@ -2766,6 +2810,13 @@ ALTER TABLE ONLY public.notes ALTER COLUMN id SET DEFAULT nextval('public.notes_
 
 
 --
+-- Name: pixiv_ugoira_frame_data id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.pixiv_ugoira_frame_data ALTER COLUMN id SET DEFAULT nextval('public.pixiv_ugoira_frame_data_id_seq'::regclass);
+
+
+--
 -- Name: pool_versions id; Type: DEFAULT; Schema: public; Owner: -
 --
 
@@ -3219,6 +3270,14 @@ ALTER TABLE ONLY public.notes
 
 
 --
+-- Name: pixiv_ugoira_frame_data pixiv_ugoira_frame_data_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.pixiv_ugoira_frame_data
+    ADD CONSTRAINT pixiv_ugoira_frame_data_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: pool_versions pool_versions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -3461,6 +3520,27 @@ CREATE INDEX index_ai_tags_on_score ON public.ai_tags USING btree (score);
 --
 
 CREATE INDEX index_ai_tags_on_tag_id_and_score ON public.ai_tags USING btree (tag_id, score);
+
+
+--
+-- Name: index_ai_tags_temp_on_media_asset_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_ai_tags_temp_on_media_asset_id ON public.ai_tags_temp USING btree (media_asset_id);
+
+
+--
+-- Name: index_ai_tags_temp_on_score; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_ai_tags_temp_on_score ON public.ai_tags_temp USING btree (score);
+
+
+--
+-- Name: index_ai_tags_temp_on_tag_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_ai_tags_temp_on_tag_id ON public.ai_tags_temp USING btree (tag_id);
 
 
 --
@@ -4325,13 +4405,6 @@ CREATE INDEX index_good_jobs_on_scheduled_at ON public.good_jobs USING btree (sc
 
 
 --
--- Name: index_good_jobs_on_scheduled_at_priority_created_at_when_unfini; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX index_good_jobs_on_scheduled_at_priority_created_at_when_unfini ON public.good_jobs USING btree (scheduled_at DESC NULLS LAST, priority DESC NULLS LAST, created_at) WHERE (finished_at IS NULL);
-
-
---
 -- Name: index_ip_bans_on_category; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -4703,31 +4776,10 @@ CREATE INDEX index_notes_on_post_id ON public.notes USING btree (post_id);
 
 
 --
--- Name: index_pool_versions_on_added_post_ids; Type: INDEX; Schema: public; Owner: -
+-- Name: index_pixiv_ugoira_frame_data_on_post_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX index_pool_versions_on_added_post_ids ON public.pool_versions USING btree (added_post_ids);
-
-
---
--- Name: index_pool_versions_on_created_at; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX index_pool_versions_on_created_at ON public.pool_versions USING btree (created_at);
-
-
---
--- Name: index_pool_versions_on_description_changed; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX index_pool_versions_on_description_changed ON public.pool_versions USING btree (description_changed);
-
-
---
--- Name: index_pool_versions_on_name_changed; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX index_pool_versions_on_name_changed ON public.pool_versions USING btree (name_changed);
+CREATE UNIQUE INDEX index_pixiv_ugoira_frame_data_on_post_id ON public.pixiv_ugoira_frame_data USING btree (post_id);
 
 
 --
@@ -4735,27 +4787,6 @@ CREATE INDEX index_pool_versions_on_name_changed ON public.pool_versions USING b
 --
 
 CREATE INDEX index_pool_versions_on_pool_id ON public.pool_versions USING btree (pool_id);
-
-
---
--- Name: index_pool_versions_on_post_ids; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX index_pool_versions_on_post_ids ON public.pool_versions USING btree (post_ids);
-
-
---
--- Name: index_pool_versions_on_removed_post_ids; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX index_pool_versions_on_removed_post_ids ON public.pool_versions USING btree (removed_post_ids);
-
-
---
--- Name: index_pool_versions_on_updated_at; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX index_pool_versions_on_updated_at ON public.pool_versions USING btree (updated_at);
 
 
 --
@@ -5011,52 +5042,10 @@ CREATE INDEX index_post_replacements_on_post_id ON public.post_replacements USIN
 
 
 --
--- Name: index_post_versions_on_added_tags; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX index_post_versions_on_added_tags ON public.post_versions USING btree (added_tags);
-
-
---
--- Name: index_post_versions_on_created_at; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX index_post_versions_on_created_at ON public.post_versions USING btree (created_at);
-
-
---
--- Name: index_post_versions_on_parent_changed; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX index_post_versions_on_parent_changed ON public.post_versions USING btree (parent_changed);
-
-
---
 -- Name: index_post_versions_on_post_id; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE INDEX index_post_versions_on_post_id ON public.post_versions USING btree (post_id);
-
-
---
--- Name: index_post_versions_on_rating_changed; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX index_post_versions_on_rating_changed ON public.post_versions USING btree (rating_changed);
-
-
---
--- Name: index_post_versions_on_removed_tags; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX index_post_versions_on_removed_tags ON public.post_versions USING btree (removed_tags);
-
-
---
--- Name: index_post_versions_on_source_changed; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX index_post_versions_on_source_changed ON public.post_versions USING btree (source_changed);
 
 
 --
@@ -5071,13 +5060,6 @@ CREATE INDEX index_post_versions_on_updated_at ON public.post_versions USING btr
 --
 
 CREATE INDEX index_post_versions_on_updater_id ON public.post_versions USING btree (updater_id);
-
-
---
--- Name: index_post_versions_on_version; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX index_post_versions_on_version ON public.post_versions USING btree (version);
 
 
 --
@@ -5943,6 +5925,13 @@ CREATE INDEX index_wiki_pages_on_updated_at ON public.wiki_pages USING btree (up
 
 
 --
+-- Name: pixiv_ugoira_frame_data_md5_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX pixiv_ugoira_frame_data_md5_idx ON public.pixiv_ugoira_frame_data USING btree (md5);
+
+
+--
 -- Name: unique_schema_migrations; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -6784,13 +6773,16 @@ INSERT INTO "schema_migrations" (version) VALUES
 ('20161018221128'),
 ('20161024220345'),
 ('20161101003139'),
+('20161214191901'),
 ('20161221225849'),
+('20161221234158'),
 ('20161227003428'),
 ('20161229001201'),
 ('20170106012138'),
 ('20170112021922'),
 ('20170112060921'),
 ('20170117233040'),
+('20170119015012'),
 ('20170218104710'),
 ('20170302014435'),
 ('20170314235626'),

@@ -93,6 +93,7 @@ class Post < ApplicationRecord
   def self.new_from_upload(upload_media_asset, tag_string: nil, rating: nil, parent_id: nil, source: nil, artist_commentary_title: nil, artist_commentary_desc: nil, translated_commentary_title: nil, translated_commentary_desc: nil, is_pending: nil, add_artist_tag: false)
     upload = upload_media_asset.upload
     media_asset = upload_media_asset.media_asset
+    source = "" if source.to_s.starts_with?("file://")
 
     # XXX depends on CurrentUser
     commentary = ArtistCommentary.new(

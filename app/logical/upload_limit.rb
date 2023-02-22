@@ -26,7 +26,7 @@ class UploadLimit
 
   INITIAL_POINTS = Danbooru.config.initial_upload_points.to_i
   MAXIMUM_POINTS = Danbooru.config.maximum_upload_points.to_i
-  APPEAL_COST = 3
+  APPEAL_COST = 1
   DELETION_COST = 5
 
   attr_reader :user
