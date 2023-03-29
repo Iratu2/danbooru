@@ -8,9 +8,15 @@
 }
 
 .media-asset-component {
+  --min-asset-height: 320px;
+
   &:not(.media-asset-component-fit-height) .media-asset-paginator {
     position: sticky;
-    top: calc((100vh + var(--header-visible-height) - var(--paginator-size)) / 2);
+
+    top: calc((max(var(--min-asset-height), 100vh)  + var(--header-visible-height) - var(--paginator-size)) / 2);
+    @supports (top: 100dvh) {
+      top: calc((max(var(--min-asset-height), 100dvh) + var(--header-visible-height) - var(--paginator-size)) / 2);
+    }
   }
 
   &:hover {
@@ -64,12 +70,27 @@
   }
 
   &.media-asset-component-fit-height {
-    max-height: calc(100vh - var(--header-visible-height));
     justify-content: center;
 
     .media-asset-container {
       aspect-ratio: var(--media-asset-width) / var(--media-asset-height);
       height: fit-content;
+    }
+  }
+
+  &.media-asset-component-fit-height[data-dynamic-height="false"] {
+    top: calc(var(--header-initial-height) / 2);
+
+    max-height: calc(max(var(--min-asset-height), 100vh)  - var(--header-initial-height));
+    @supports (max-height: 100dvh) {
+      max-height: calc(max(var(--min-asset-height), 100dvh) - var(--header-initial-height));
+    }
+  }
+
+  &.media-asset-component-fit-height[data-dynamic-height="true"] {
+    max-height: calc(max(var(--min-asset-height), 100vh)  - var(--header-visible-height));
+    @supports (max-height: 100dvh) {
+      max-height: calc(max(var(--min-asset-height), 100dvh) - var(--header-visible-height));
     }
   }
 

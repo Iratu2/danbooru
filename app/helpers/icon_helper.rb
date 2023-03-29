@@ -360,6 +360,10 @@ module IconHelper
     svg_icon_tag("chevron-right", viewBox: "0 0 384 512", **options)
   end
 
+  def chevron_down_icon(**options)
+    svg_icon_tag("chevron-down", viewBox: "0 0 448 512", **options)
+  end
+
   def ellipsis_icon(**options)
     svg_icon_tag("ellipsis", viewBox: "0 0 448 512", **options)
   end
@@ -418,6 +422,50 @@ module IconHelper
 
   def globe_icon(**options)
     svg_icon_tag("globe", viewBox: "0 0 512 512", **options)
+  end
+
+  def file_lines_icon(**options)
+    svg_icon_tag("file-lines", viewBox: "0 0 384 512", **options)
+  end
+
+  def file_pen_icon(**options)
+    svg_icon_tag("file-pen", viewBox: "0 0 576 512", **options)
+  end
+
+  def link_slash_icon(**options)
+    svg_icon_tag("link-slash", viewBox: "0 0 640 512", **options)
+  end
+
+  def help_icon(**options)
+    svg_icon_tag("circle-question", viewBox: "0 0 512 512", **options)
+  end
+
+  def info_icon(**options)
+    svg_icon_tag("circle-info", viewBox: "0 0 512 512", **options)
+  end
+
+  def dock_top_icon(**options)
+    svg_icon_tag("dock-top", viewBox: "0 0 1024 1024", **options)
+  end
+
+  def dock_right_icon(**options)
+    svg_icon_tag("dock-right", viewBox: "0 0 1024 1024", **options)
+  end
+
+  def dock_bottom_icon(**options)
+    svg_icon_tag("dock-bottom", viewBox: "0 0 1024 1024", **options)
+  end
+
+  def dock_left_icon(**options)
+    svg_icon_tag("dock-left", viewBox: "0 0 1024 1024", **options)
+  end
+
+  def rotate_icon(**options)
+    svg_icon_tag("rotate", viewBox: "0 0 512 512", **options)
+  end
+
+  def rotate_right_icon(**options)
+    svg_icon_tag("rotate-right", viewBox: "0 0 512 512", **options)
   end
 
   def discord_icon(**options)

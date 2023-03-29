@@ -1,13 +1,22 @@
-<%= tag.div class: ["tab-panel-component", *Array.wrap(classes)], "x-data": "{ active: 0 }" do %>
-  <div class="tab-list">
-    <% tabs.each_with_index do |tab, i| %>
-      <%= link_to tab.name, tab.url, class: ["tab", ("active-tab" if i == 0)], "x-on:click.prevent": "active = #{i}", "x-bind:class": "{ 'active-tab': active === #{i} }" %>
+<%= tag.div class: ["tab-panel-component", *Array.wrap(classes)], "x-data": "{ active: #{default_tab.index} }", **html do %>
+  <div class="tab-list thin-x-scrollbar <%= tab_list_classes %>">
+    <% tabs.each do |tab| %>
+      <% case tab %>
+      <% when Panel %>
+        <%= link_to tab.name, tab.url, class: ["tab", tab.id, tab.classes, ("active-tab" if tab.index == default_tab.index)], "x-on:click.prevent": "active = #{tab.index}", "x-bind:class": "{ 'active-tab': active === #{tab.index} }" %>
+      <% when Spacer %>
+        <span class="tab-spacer flex-grow-1"></span>
+      <% when MenuItem %>
+        <span class="tab-menu-item <%= tab.id %> <%= tab.classes %>">
+          <%= tab.content.call %>
+        </span>
+      <% end %>
     <% end %>
   </div>
 
   <div class="tab-panels">
-    <% panels.each_with_index do |panel, i| %>
-      <%= tag.div class: "tab-panel", style: ("display: none;" if i != 0), "x-show": "active === #{i}" do %>
+    <% panels.zip(tabs.grep(Panel)).each do |(panel, tab)| %>
+      <%= tag.div class: ["tab-panel", tab.id, ("active-tab" if tab.index == default_tab.index)], "x-bind:class": "{ 'active-tab': active === #{tab.index} }" do %>
         <%= panel %>
       <% end %>
     <% end %>
