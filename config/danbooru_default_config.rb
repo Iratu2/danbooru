@@ -144,6 +144,25 @@ module Danbooru
       false
     end
 
+    # The log level for the application. Valid values are "debug", "info", "warn", "error", or "fatal". "debug" is the
+    # most verbose and "fatal" is the least verbose.
+    #
+    # The default log level is taken from the RAILS_LOG_LEVEL environment variable, otherwise it's "debug" if debug mode
+    # is enabled, otherwise it's "error" in production, "info" in development, or "fatal" in testing.
+    def log_level
+      if ENV["RAILS_LOG_LEVEL"].present?
+        ENV["RAILS_LOG_LEVEL"]
+      elsif debug_mode
+        :debug
+      elsif Rails.env.production?
+        :error
+      elsif Rails.env.development?
+        :info
+      else
+        :fatal
+      end
+    end
+
     def source_code_url
       "https://github.com/danbooru/danbooru"
     end
@@ -455,9 +474,8 @@ module Danbooru
 
     # Posts with these tags will be highlighted in the modqueue.
     def modqueue_warning_tags
-      %w[hard_translated nude_filter third-party_edit screenshot
-      anime_screencap duplicate image_sample md5_mismatch resized upscaled downscaled
-      resolution_mismatch source_larger source_smaller ai-generated]
+      %w[ai-generated ai-assisted anime_screencap bad_source duplicate hard_translated image_sample md5_mismatch
+      nude_filter off-topic paid_reward resized third-party_edit]
     end
 
     # Whether the Gold account upgrade page should be enabled.

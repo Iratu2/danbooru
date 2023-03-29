@@ -216,9 +216,9 @@ module ApplicationHelper
     link_to tag.pretty_name, posts_path(tags: tag.name), class: tag_class(tag), **options
   end
 
-  def link_to_wiki(text, title = text, **options)
+  def link_to_wiki(text, title = text, classes: nil, **options)
     title = "~#{title}" if title =~ /\A\d+\z/
-    link_to text, wiki_page_path(title), class: "wiki-link", **options
+    link_to text, wiki_page_path(title), class: "wiki-link #{classes}", **options
   end
 
   def link_to_wikis(*wiki_titles, **options)
@@ -240,10 +240,10 @@ module ApplicationHelper
     link_to(text, url, class: user_class, data: data)
   end
 
-  def embed_wiki(title, **options)
+  def embed_wiki(title, classes: nil, **options)
     wiki = WikiPage.find_by(title: title)
     text = format_text(wiki&.body)
-    tag.div(text, class: "prose", **options)
+    tag.div(text, class: "prose #{classes}".strip, **options)
   end
 
   def dtext_preview_button(preview_field)

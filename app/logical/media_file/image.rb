@@ -40,7 +40,7 @@ class MediaFile::Image < MediaFile
   end
 
   def error
-    image = Vips::Image.new_from_file(file.path, fail: true, access: :sequential)
+    image = open_image(fail: true)
     stats = image.stats
     stats.release
     image.release
@@ -98,17 +98,21 @@ class MediaFile::Image < MediaFile
     # @see https://www.libvips.org/API/current/Using-vipsthumbnail.md.html
     # @see https://www.libvips.org/API/current/libvips-resample.html#vips-thumbnail
     if colorspace.in?(%i[srgb rgb16])
-      resized_image = thumbnail_image(max_width, height: max_height, import_profile: "srgb", export_profile: "srgb", **options)
-    elsif colorspace == :cmyk
-      # Leave CMYK as CMYK for better color accuracy than sRGB.
-      resized_image = thumbnail_image(max_width, height: max_height, import_profile: "cmyk", export_profile: "cmyk", intent: :relative, **options)
+      resized_image = thumbnail_image(max_width, height: max_height, size: :force, import_profile: "srgb", export_profile: "srgb", **options)
+    elsif colorspace == :cmyk && has_embedded_profile?
+      resized_image = thumbnail_image(max_width, height: max_height, size: :force, import_profile: "cmyk", export_profile: "srgb", **options)
+    elsif colorspace == :cmyk && !has_embedded_profile?
+      # Leave CMYK without a profile as CMYK to avoid distorting the colors by converting it to sRGB
+      hscale = max_width / width.to_f
+      vscale = max_height / height.to_f
+      resized_image = image.resize(hscale, vscale: vscale, **options)
     elsif colorspace.in?(%i[b-w grey16]) && has_embedded_profile?
       # Convert greyscale to sRGB so that the color profile is properly applied before we strip it.
-      resized_image = thumbnail_image(max_width, height: max_height, export_profile: "srgb", **options)
+      resized_image = thumbnail_image(max_width, height: max_height, size: :force, export_profile: "srgb", **options)
     elsif colorspace.in?(%i[b-w grey16])
       # Otherwise, leave greyscale without a profile as greyscale because
       # converting it to sRGB would change it from 1 channel to 3 channels.
-      resized_image = thumbnail_image(max_width, height: max_height, **options)
+      resized_image = thumbnail_image(max_width, height: max_height, size: :force, **options)
     else
       raise NotImplementedError
     end
@@ -140,7 +144,7 @@ class MediaFile::Image < MediaFile
 
   def preview!(max_width, max_height, **options)
     w, h = MediaFile.scale_dimensions(width, height, max_width, max_height)
-    MediaFile::Image.new(preview_frame.file).resize!(w, h, size: :force, **options)
+    MediaFile::Image.new(preview_frame.file).resize!(w, h, **options)
   end
 
   def is_animated?
@@ -181,7 +185,7 @@ class MediaFile::Image < MediaFile
 
   # @return [MediaFile::Image] The raw image used for computing the pixel hash.
   def pixel_hash_file
-    image = Vips::Image.new_from_file(file.path, fail: true, access: :sequential).autorot
+    image = open_image(fail: true)
     image = image.icc_transform("srgb") if image.get_typeof("icc-profile-data") != 0
     image = image.colourspace("srgb") if image.interpretation != :srgb
     image = image.add_alpha unless image.has_alpha?
@@ -207,7 +211,19 @@ class MediaFile::Image < MediaFile
 
   # @return [Vips::Image] the Vips image object for the file
   def image
-    @image ||= Vips::Image.new_from_file(file.path, fail: false, access: :sequential).autorot
+    @image ||= open_image(fail: false)
+  end
+
+  def open_image(**options)
+    case file_ext
+    when :jpg
+      # Only JPEG supports the EXIF orientation flag. It may technically be present in other formats, but web browsers
+      # ignore it, so we do too. XXX AVIF also has `irot` and `imir` flags, which browsers support, but libvips doesn't.
+      # https://zpl.fi/exif-orientation-in-different-formats/
+      Vips::Image.new_from_file(file.path, access: :sequential, autorotate: true, **options)
+    else
+      Vips::Image.new_from_file(file.path, access: :sequential, **options)
+    end
   end
 
   def video

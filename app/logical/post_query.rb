@@ -65,7 +65,7 @@ class PostQuery
   end
 
   def builder
-    @builder ||= PostQueryBuilder.new(search, current_user, tag_limit: tag_limit, safe_mode: safe_mode)
+    @builder ||= PostQueryBuilder.new(self, current_user, tag_limit: tag_limit, safe_mode: safe_mode)
   end
 
   def search
@@ -86,6 +86,18 @@ class PostQuery
     builder.paginated_posts(to_cnf, ...)
   end
 
+  # Perform a search and return N posts, or none if the search times out.
+  #
+  # @param n [Integer] The number of posts to return.
+  # @param timeout [Integer] The search timeout, in milliseconds.
+  # @param count [Integer] The number of posts matched by the search. An optional optimization if the search count is known ahead of time.
+  # @return [Array<Post>]
+  def posts_with_timeout(n, timeout: current_user.statement_timeout, count: post_count)
+    Post.with_timeout(timeout, []) do
+      paginated_posts(1, limit: n, count: count)
+    end
+  end
+
   # The name of the only tag in the query, if the query contains a single tag. The tag may not exist. The query may contain other metatags or wildcards, and the tag may be negated.
   def tag_name
     tag_names.first if has_single_tag?
@@ -93,7 +105,7 @@ class PostQuery
 
   # The only tag in the query, if the query contains a single tag. The query may contain other metatags or wildcards, and the tag may be negated.
   def tag
-    tags.first if has_single_tag?
+    tags.to_a.first if has_single_tag?
   end
 
   # The list of all tags contained in the query.

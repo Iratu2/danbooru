@@ -996,8 +996,9 @@ CREATE TABLE public.media_assets (
     image_height integer NOT NULL,
     duration double precision,
     status integer DEFAULT 200 NOT NULL,
-    file_key character varying,
-    is_public boolean DEFAULT true NOT NULL
+    file_key character varying NOT NULL,
+    is_public boolean DEFAULT true NOT NULL,
+    pixel_hash uuid NOT NULL
 );
 
 
@@ -4601,6 +4602,13 @@ CREATE UNIQUE INDEX index_media_assets_on_md5_and_status ON public.media_assets 
 
 
 --
+-- Name: index_media_assets_on_pixel_hash; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_media_assets_on_pixel_hash ON public.media_assets USING btree (pixel_hash);
+
+
+--
 -- Name: index_media_assets_on_status; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -5869,6 +5877,13 @@ CREATE INDEX index_wiki_page_versions_on_wiki_page_id ON public.wiki_page_versio
 
 
 --
+-- Name: index_wiki_pages_on_array_to_tsvector_lower_other_names; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_wiki_pages_on_array_to_tsvector_lower_other_names ON public.wiki_pages USING gin (array_to_tsvector(public.lower(other_names)));
+
+
+--
 -- Name: index_wiki_pages_on_array_to_tsvector_other_names; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -6971,6 +6986,9 @@ INSERT INTO "schema_migrations" (version) VALUES
 ('20221228232240'),
 ('20221230011825'),
 ('20230104064916'),
-('20230209060757');
+('20230209060757'),
+('20230222230650'),
+('20230309014439'),
+('20230325143851');
 
 

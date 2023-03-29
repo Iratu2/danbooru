@@ -14,7 +14,20 @@ class MediaAsset < ApplicationRecord
   LARGE_IMAGE_WIDTH = Danbooru.config.large_image_width
   STORAGE_SERVICE = Danbooru.config.storage_manager
 
-  has_one :post, foreign_key: :md5, primary_key: :md5
+  attribute :id
+  attribute :created_at
+  attribute :updated_at
+  attribute :md5
+  attribute :file_ext
+  attribute :file_size
+  attribute :image_width
+  attribute :image_height
+  attribute :duration
+  attribute :status
+  attribute :is_public
+  attribute :pixel_hash, :md5
+
+  has_one :post, foreign_key: :md5, primary_key: :md5, inverse_of: :media_asset
   has_one :media_metadata, dependent: :destroy
   has_many :upload_media_assets, dependent: :destroy
   has_many :uploads, through: :upload_media_assets
@@ -231,7 +244,7 @@ class MediaAsset < ApplicationRecord
       end
 
       def search(params, current_user)
-        q = search_attributes(params, [:id, :created_at, :updated_at, :status, :md5, :file_ext, :file_size, :image_width, :image_height, :duration, :file_key, :is_public], current_user: current_user)
+        q = search_attributes(params, [:id, :created_at, :updated_at, :status, :md5, :pixel_hash, :file_ext, :file_size, :image_width, :image_height, :duration, :file_key, :is_public], current_user: current_user)
 
         if params[:metadata].present?
           q = q.joins(:media_metadata).merge(MediaMetadata.search({ metadata: params[:metadata] }, current_user))
@@ -255,6 +268,8 @@ class MediaAsset < ApplicationRecord
           q = q.order(id: :desc)
         when "id_asc"
           q = q.order(id: :asc)
+        when "random"
+          q = q.order("random()")
         else
           q = q.apply_default_order(params)
         end
@@ -357,6 +372,7 @@ class MediaAsset < ApplicationRecord
       media_file = file_or_path.is_a?(MediaFile) ? file_or_path : MediaFile.open(file_or_path)
 
       self.md5 = media_file.md5
+      self.pixel_hash = media_file.pixel_hash
       self.file_ext = media_file.file_ext
       self.file_size = media_file.file_size
       self.image_width = media_file.width

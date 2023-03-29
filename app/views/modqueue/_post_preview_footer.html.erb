@@ -2,15 +2,8 @@
 
 <div class="flex flex-col mt-2 gap-2">
   <div class="flex flex-wrap gap-2 items-center justify-center w-full text-xs">
-    <div class="">
-      <% if post.parsed_source.present? %>
-        <%= external_link_to post.normalized_source, external_site_icon(post.parsed_source.site_name, class: "h-4"), title: post.normalized_source, class: "inline-block align-top" %>
-      <% end %>
-
-      <%= link_to post.media_asset do %>
-        <%= number_to_human_size(post.media_asset.file_size) %> .<%= post.media_asset.file_ext %>,
-        <%= post.media_asset.image_width %>x<%= post.media_asset.image_height %>
-      <% end %>
+    <div>
+      <%= render "posts/partials/show/preview_source_footer", post: post %>
     </div>
 
     <% if @preview_size.to_i > 180 %>
@@ -41,15 +34,23 @@
     <% end %>
   </div>
 
-  <% if (CurrentUser.is_approver? || post.created_at < Danbooru.config.moderation_period.ago) && post.disapprovals.map(&:reason).without("disinterest").present? %>
-    <div class="text-center text-xs">
-      <% %w[poor_quality breaks_rules].each do |reason| %>
-        <% if post.disapprovals.map(&:reason).grep(reason).count > 0 %>
-          <span class="inline-block rounded px-2 text-inverse bg:error-color">
-            <%= reason.titleize %>: <%= post.disapprovals.map(&:reason).grep(reason).count %>
-          </span>
-        <% end %>
+  <div class="text-center text-xs">
+    <% %w[poor_quality breaks_rules].each do |reason| %>
+      <% if post.disapprovals.map(&:reason).grep(reason).count > 0 %>
+        <span class="inline-block rounded px-2 mb-1 text-inverse bg:error-color">
+          <%= reason.titleize %>: <%= post.disapprovals.map(&:reason).grep(reason).count %>
+        </span>
       <% end %>
-    </div>
-  <% end %>
+    <% end %>
+
+    <% (post.tag_array & Danbooru.config.modqueue_warning_tags).each do |tag| %>
+      <span class="inline-block rounded px-2 mb-1 text-inverse bg:error-color">
+        <%= tag.tr("_", " ").startcase %>
+      </span>
+    <% end %>
+
+    <% if post.source.blank? %>
+      <span class="inline-block rounded px-2 mb-1 text-inverse bg:error-color">No Source</span>
+    <% end %>
+  </div>
 </div>

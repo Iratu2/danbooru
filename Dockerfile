@@ -17,9 +17,9 @@
 # See https://github.com/danbooru/danbooru/wiki/Docker-Guide for more details.
 
 ARG MOZJPEG_URL="https://github.com/mozilla/mozjpeg/archive/refs/tags/v4.1.1.tar.gz"
-ARG VIPS_URL="https://github.com/libvips/libvips/releases/download/v8.14.1/vips-8.14.1.tar.xz"
-ARG FFMPEG_URL="https://github.com/FFmpeg/FFmpeg/archive/refs/tags/n5.1.2.tar.gz"
-ARG EXIFTOOL_URL="https://github.com/exiftool/exiftool/archive/refs/tags/12.50.tar.gz"
+ARG VIPS_URL="https://github.com/libvips/libvips/releases/download/v8.14.2/vips-8.14.2.tar.xz"
+ARG FFMPEG_URL="https://github.com/FFmpeg/FFmpeg/archive/refs/tags/n6.0.tar.gz"
+ARG EXIFTOOL_URL="https://github.com/exiftool/exiftool/archive/refs/tags/12.56.tar.gz"
 ARG OPENRESTY_URL="https://openresty.org/download/openresty-1.21.4.1.tar.gz"
 ARG RUBY_URL="https://cache.ruby-lang.org/pub/ruby/3.2/ruby-3.2.1.tar.gz"
 ARG POSTGRESQL_CLIENT_VERSION="14"
@@ -251,11 +251,12 @@ RUN <<EOS
 
   npm install -g yarn
   gem install --no-document foreman
-  busybox --install -s
 
   apt-get purge -y --allow-remove-essential pkg-config e2fsprogs libglib2.0-bin libglib2.0-doc mount procps python3 tzdata
   apt-get autoremove -y
   rm -rf /var/{lib,cache,log} /usr/share/{doc,info}/* /build
+
+  busybox --install -s
 EOS
 
 

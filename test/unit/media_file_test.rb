@@ -175,6 +175,10 @@ class MediaFileTest < ActiveSupport::TestCase
     should "be able to fit to width only" do
       assert_equal([400, 268], MediaFile.open("test/files/test.jpg").preview(400, nil).dimensions)
     end
+
+    should "generate a thumbnail with the correct colors for a CMYK image with no color profile" do
+      assert_equal("4c9515d85842a291f6512c93458dd7b8", MediaFile.open("test/files/test-cmyk-no-profile.jpg").preview(180, 180).pixel_hash)
+    end
   end
 
   context "#pixel_hash" do
@@ -213,7 +217,7 @@ class MediaFileTest < ActiveSupport::TestCase
 
     should "work for normal images" do
       assert_equal("01cb481ec7730b7cfced57ffa5abd196", MediaFile.pixel_hash("test/files/test.jpg"))
-      assert_equal("07daec7b3ee9438734107c36263707b2", MediaFile.pixel_hash("test/files/test-cmyk-no-profile.jpg"))
+      assert_equal("dfcdf4d8e525ffd7057f103384126cf0", MediaFile.pixel_hash("test/files/test-cmyk-no-profile.jpg"))
       assert_equal("85e9fde0ba6cc7d4fedf24c71bb6277b", MediaFile.pixel_hash("test/files/test-grey-no-profile.jpg"))
       assert_equal("7bc62a583c0eb07de4fb7fa0dc9e0851", MediaFile.pixel_hash("test/files/test-rotation-90cw.jpg"))
       assert_equal("510aa465afbba3d7d818038b7aa7bb6f", MediaFile.pixel_hash("test/files/test-rotation-180.jpg"))
@@ -232,7 +236,8 @@ class MediaFileTest < ActiveSupport::TestCase
       assert_equal("3d9213ea387706db93f0b39247d77573", MediaFile.pixel_hash("test/files/webp/test.webp"))
       assert_equal("fd52591b61fc34192d7c337fa024bf12", MediaFile.pixel_hash("test/files/webp/lossless1.webp"))
       assert_equal("c5c77aff5b4015d3416817d12c2c2377", MediaFile.pixel_hash("test/files/webp/lossy_alpha1.webp"))
-      assert_equal("509da3d93ff4def075b98bbff08010ba", MediaFile.pixel_hash("test/files/webp/Exif2.webp"))
+      assert_equal("96d0f06ba512efea2de7bda8b5775106", MediaFile.pixel_hash("test/files/webp/Exif2.webp"))
+      assert_equal("4811ad7d928dbf069ef991bb3051d7f6", MediaFile.pixel_hash("test/files/webp/Exif6.webp"))
     end
 
     should "compute the same pixel hash for images with different EXIF metadata" do
@@ -257,6 +262,11 @@ class MediaFileTest < ActiveSupport::TestCase
 
       assert_equal("d007f30f42cb7c5835fb3d0d9c24587e", MediaFile.pixel_hash("test/files/dupes/countergirl-grey.png"))
       assert_equal("d007f30f42cb7c5835fb3d0d9c24587e", MediaFile.pixel_hash("test/files/dupes/countergirl-grey-srgb.png"))
+    end
+
+    should "compute the same pixel hash for a color image with an incompatible greyscale color profile" do
+      assert_equal("c135caa2229b6d43d06179503f70ed74", MediaFile.pixel_hash("test/files/dupes/countergirl-no-exif.jpg"))
+      assert_equal("c135caa2229b6d43d06179503f70ed74", MediaFile.pixel_hash("test/files/dupes/countergirl-rgb-gray.jpg"))
     end
 
     should "compute the same pixel hash for images with a transparent alpha channel" do
@@ -348,7 +358,7 @@ class MediaFileTest < ActiveSupport::TestCase
       file = MediaFile.open("test/files/mp4/test-silent-audio.mp4")
 
       assert_equal(false, file.is_corrupt?)
-      assert_equal(5.736, file.duration)
+      assert_equal(5.735011, file.duration)
       assert_equal(1.74, file.frame_rate.round(2))
       assert_equal(10, file.frame_count)
       assert_equal(10, file.metadata["FFmpeg:FrameCount"])
@@ -364,7 +374,7 @@ class MediaFileTest < ActiveSupport::TestCase
       assert_equal(0, file.metadata["FFmpeg:AudioPeakLoudness"].round(4))
       assert_equal(0.0003, file.metadata["FFmpeg:AudioAverageLoudness"].round(4))
       assert_equal(0, file.metadata["FFmpeg:AudioLoudnessRange"])
-      assert_equal(0.9999, file.metadata["FFmpeg:AudioSilencePercentage"].round(4))
+      assert_equal(1.0, file.metadata["FFmpeg:AudioSilencePercentage"].round(4))
     end
 
     should "determine the metadata for a video without audio" do
@@ -536,8 +546,8 @@ class MediaFileTest < ActiveSupport::TestCase
 
         assert_equal(false, file.is_corrupt?)
         assert_equal(true, file.is_animated?)
-        assert_equal(3.0, file.duration)
-        assert_equal(1.0, file.frame_rate)
+        assert_equal(2.0, file.duration)
+        assert_equal(1.5, file.frame_rate)
         assert_equal(3, file.frame_count)
       end
     end
@@ -804,51 +814,75 @@ class MediaFileTest < ActiveSupport::TestCase
     end
   end
 
-  context "an image that is rotated 90 degrees clockwise" do
-    should "have the correct dimensions" do
+  context "a large JPEG with an orientation flag" do
+    should "read the whole image without `out of order read` errors" do
+      @file = MediaFile.open("test/files/test-rotation-270cw-large.jpg")
+
+      assert_equal([1104, 736], @file.dimensions)
+      assert_equal([180, 120], @file.preview(180, 180).dimensions)
+      assert_nil(@file.error)
+      assert_equal("b9f80b26f56c1877b8a7f12b42e76909", @file.md5)
+      assert_equal("f4602dd62706f8607b86cec90b51d498", @file.pixel_hash)
+    end
+  end
+
+  context "a JPEG that is rotated 90 degrees clockwise" do
+    should "rotate the image correctly" do
       @file = MediaFile.open("test/files/test-rotation-90cw.jpg")
+
       assert_equal([96, 128], @file.dimensions)
-    end
-
-    should "generate a rotated thumbnail" do
-      @file = MediaFile.open("test/files/test-rotation-90cw.jpg")
       assert_equal([48, 64], @file.preview(64, 64).dimensions)
+      assert_equal("7bc62a583c0eb07de4fb7fa0dc9e0851", @file.pixel_hash)
     end
   end
 
-  context "an image that is rotated 270 degrees clockwise" do
-    should "have the correct dimensions" do
+  context "a JPEG that is rotated 270 degrees clockwise" do
+    should "rotate the image correctly" do
       @file = MediaFile.open("test/files/test-rotation-270cw.jpg")
+
       assert_equal([100, 66], @file.dimensions)
-    end
-
-    should "generate a rotated thumbnail" do
-      @file = MediaFile.open("test/files/test-rotation-270cw.jpg")
       assert_equal([50, 33], @file.preview(50, 50).dimensions)
+      assert_equal("ac0220aea5683e3c4ffcb2c7b34078e8", @file.pixel_hash)
     end
   end
 
-  context "an image that is rotated 180 degrees" do
-    should "have the correct dimensions" do
+  context "a JPEG that is rotated 180 degrees" do
+    should "rotate the image correctly" do
       @file = MediaFile.open("test/files/test-rotation-180.jpg")
-      assert_equal([66, 100], @file.dimensions)
-    end
 
-    should "generate a rotated thumbnail" do
-      @file = MediaFile.open("test/files/test-rotation-180.jpg")
+      assert_equal([66, 100], @file.dimensions)
       assert_equal([33, 50], @file.preview(50, 50).dimensions)
+      assert_equal("510aa465afbba3d7d818038b7aa7bb6f", @file.pixel_hash)
     end
   end
 
   context "a PNG with an exif orientation flag" do
-    should "not generate rotated dimensions" do
+    should "not rotate the image" do
       @file = MediaFile.open("test/files/test-rotation-90cw.png")
-      assert_equal([128, 96], @file.dimensions)
-    end
 
-    should "not generate a rotated thumbnail" do
-      @file = MediaFile.open("test/files/test-rotation-90cw.png")
+      assert_equal([128, 96], @file.dimensions)
       assert_equal([64, 48], @file.preview(64, 64).dimensions)
+      assert_equal("723bce01fcc6b8444ae362467e8628af", @file.pixel_hash)
+    end
+  end
+
+  context "a WebP with an exif orientation flag" do
+    should "not rotate the image" do
+      @file = MediaFile.open("test/files/webp/Exif6.webp")
+
+      assert_equal([427, 640], @file.dimensions)
+      assert_equal([43, 64], @file.preview(64, 64).dimensions)
+      assert_equal("4811ad7d928dbf069ef991bb3051d7f6", @file.pixel_hash)
+    end
+  end
+
+  context "a AVIF with an exif orientation flag" do
+    should "not rotate the image" do
+      @file = MediaFile.open("test/files/avif/Exif6.avif")
+
+      assert_equal([427, 640], @file.dimensions)
+      assert_equal([43, 64], @file.preview(64, 64).dimensions)
+      assert_equal("2cd7cd5f7f67a786c1b14d60ed7b6c25", @file.pixel_hash)
     end
   end
 end
