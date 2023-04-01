@@ -57,6 +57,10 @@ class PostPolicy < ApplicationPolicy
     user.is_moderator?
   end
 
+  def reactable?
+    unbanned?
+  end
+
   def visible?
     record.visible?(user)
   end
