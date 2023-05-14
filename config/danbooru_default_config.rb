@@ -209,11 +209,6 @@ module Danbooru
       []
     end
 
-    # Thumbnail size
-    def small_image_width
-      150
-    end
-
     # Large resize image width. Set to nil to disable.
     def large_image_width
       850
@@ -470,6 +465,18 @@ module Danbooru
     # After you create an account, go to https://medibang.com/myProfile/myProfileModifyForm/ to set your age to 18+,
     # then enable mature content. After you login, use the devtools to find the "MSID" cookie.
     def art_street_session_cookie
+    end
+
+    # Your Twitter "auth_token" cookie. A 40-character hex string.
+    #
+    # Login to Twitter, open the devtools, open a tweet, then use the devtools to find the /TweetDetail request and look for the auth_token cookie.
+    def twitter_auth_token
+    end
+
+    # Your Twitter "ct0" cookie. Also available in the X-CSRF-Token HTTP Header. A 160-character hex string.
+    #
+    # Login to Twitter, open the devtools, open a tweet, then use the devtools to find the /TweetDetail request and look for the ct0 cookie or the x-csrf-request header.
+    def twitter_csrf_token
     end
 
     # A list of tags that should be removed when a post is replaced. Regexes allowed.

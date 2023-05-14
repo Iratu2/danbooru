@@ -84,11 +84,12 @@ class UploadMediaAsset < ApplicationRecord
   end
 
   def file_upload?
-    source_url.starts_with?("file://")
+    # XXX in production there are ~150 old assets with blank source urls because the source went bad id before the image url could be saved.
+    source_url.starts_with?("file://") || source_url.blank?
   end
 
   def bad_source?
-    parsed_canonical_url.recognized? && parsed_canonical_url&.image_url? && parsed_canonical_url&.page_url.nil?
+    parsed_canonical_url&.recognized? && parsed_canonical_url&.image_url? && parsed_canonical_url&.page_url.nil?
   end
 
   # The source of the post after upload. This is either the image URL, if the image URL is convertible to a page URL
@@ -102,7 +103,7 @@ class UploadMediaAsset < ApplicationRecord
       source_url
 
     # If a better page URL can be found by the extractor (potentially with an API call), then use that as the source.
-    elsif source_extractor.page_url.present?
+    elsif source_extractor&.page_url.present?
       source_extractor.page_url
 
     # If we can't find any better page URL, then just use the one we already have.

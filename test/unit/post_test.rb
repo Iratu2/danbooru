@@ -28,7 +28,7 @@ class PostTest < ActiveSupport::TestCase
   context "Deletion:" do
     context "Expunging a post" do
       setup do
-        @post = create(:post_with_file, uploader: @user, filename: "test.jpg")
+        @post = create(:post_with_file, tag_string: "1girl solo", uploader: @user, filename: "test.jpg")
         Favorite.create!(post: @post, user: @user)
         create(:favorite_group, post_ids: [@post.id])
         perform_enqueued_jobs # perform IqdbAddPostJob
@@ -44,12 +44,12 @@ class PostTest < ActiveSupport::TestCase
       end
 
       should "delete the files" do
-        assert_nothing_raised { @post.file(:preview) }
+        assert_nothing_raised { @post.file(:"180x180") }
         assert_nothing_raised { @post.file(:original) }
 
         @post.expunge!
 
-        assert_raise(StandardError) { @post.file(:preview) }
+        assert_raise(StandardError) { @post.file(:"180x180") }
         assert_raise(StandardError) { @post.file(:original) }
       end
 
@@ -87,6 +87,16 @@ class PostTest < ActiveSupport::TestCase
         assert_nil(ModAction.last.subject)
       end
 
+      should "decrement the tag post counts" do
+        assert_equal(1, Tag.find_by_name("1girl").post_count)
+        assert_equal(1, Tag.find_by_name("solo").post_count)
+
+        @post.expunge!
+
+        assert_equal(0, Tag.find_by_name("1girl").post_count)
+        assert_equal(0, Tag.find_by_name("solo").post_count)
+      end
+
       should "decrement the uploader's upload count" do
         assert_difference("@post.uploader.reload.post_upload_count", -1) do
           @post.expunge!
@@ -113,6 +123,7 @@ class PostTest < ActiveSupport::TestCase
       end
 
       should "remove the post from iqdb" do
+        mock_iqdb_remove_post!(@post)
         @post.expunge!
         perform_enqueued_jobs
         assert_performed_jobs(1, only: IqdbRemovePostJob)
@@ -398,7 +409,7 @@ class PostTest < ActiveSupport::TestCase
         end
 
         should "1234 update the category cache of the tag" do
-          assert_equal(Tag.categories.copyright, Cache.get("tc:#{Cache.hash('abc')}"))
+          assert_equal(Tag.categories.copyright, Cache.get("tag-category:#{Cache.hash('abc')}"))
         end
 
         should "update the tag counts of the posts" do
@@ -2046,7 +2057,7 @@ class PostTest < ActiveSupport::TestCase
     should "generate the correct urls for animated gifs" do
       @post = create(:post_with_file, filename: "test-animated-86x52.gif")
 
-      assert_equal("https://www.example.com/data/preview/77/d8/77d89bda37ea3af09158ed3282f8334f.jpg", @post.preview_file_url)
+      assert_equal("https://www.example.com/data/180x180/77/d8/77d89bda37ea3af09158ed3282f8334f.jpg", @post.preview_file_url)
       assert_equal("https://www.example.com/data/original/77/d8/77d89bda37ea3af09158ed3282f8334f.gif", @post.large_file_url)
       assert_equal("https://www.example.com/data/original/77/d8/77d89bda37ea3af09158ed3282f8334f.gif", @post.file_url)
     end

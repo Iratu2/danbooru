@@ -45,7 +45,6 @@ gem 'google-cloud-storage', require: "google/cloud/storage"
 gem 'ed25519'
 gem 'bcrypt_pbkdf' # https://github.com/net-ssh/net-ssh/issues/565
 gem 'clockwork'
-gem 'puma-metrics'
 gem 'puma_worker_killer'
 gem "rack-timeout", require: "rack/timeout/base"
 gem "parallel"
@@ -62,11 +61,12 @@ gem "resolv"
 gem "rover-df"
 gem "ffi-libarchive"
 gem "pry-rails"
+gem "drb"
 
 group :development do
   gem 'rubocop', require: false
   gem 'rubocop-rails', require: false
-  #gem 'meta_request'
+  gem 'meta_request'
   gem 'rack-mini-profiler'
   gem 'stackprof'
   gem 'flamegraph'

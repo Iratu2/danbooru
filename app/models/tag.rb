@@ -16,6 +16,7 @@ class Tag < ApplicationRecord
   has_many :antecedent_implications, -> {active}, :class_name => "TagImplication", :foreign_key => "antecedent_name", :primary_key => "name"
   has_many :consequent_implications, -> {active}, :class_name => "TagImplication", :foreign_key => "consequent_name", :primary_key => "name"
   has_many :dtext_links, foreign_key: :link_target, primary_key: :name
+  has_many :reactions, as: :model, dependent: :destroy
   has_many :ai_tags
 
   validates :name, tag_name: true, uniqueness: true, on: :create
@@ -144,7 +145,7 @@ class Tag < ApplicationRecord
       end
 
       def categories_for(tag_names)
-        Cache.get_multi(Array(tag_names), "tc") do |tag|
+        Cache.get_multi(Array(tag_names), "tag-category") do |tag|
           Tag.select_category_for(tag)
         end
       end
@@ -171,7 +172,7 @@ class Tag < ApplicationRecord
     end
 
     def update_category_cache
-      Cache.put("tc:#{Cache.hash(name)}", category, 3.hours)
+      Cache.put("tag-category:#{Cache.hash(name)}", category, 3.hours)
     end
 
     # When a tag's category is changed, also change the categories of any aliases pointing to it.
@@ -215,7 +216,13 @@ class Tag < ApplicationRecord
 
       def find_or_create_by_name(name, category: nil, current_user: nil)
         cat_id = categories.value_for(category)
-        tag = create_with(category: cat_id).find_or_create_by(name: normalize_name(name))
+        tag = Tag.find_by(name: normalize_name(name))
+
+        if tag.nil?
+          tag = Tag.new(name: normalize_name(name), category: cat_id)
+          saved = tag.save_if_unique(:name)
+          tag = Tag.find_by!(name: normalize_name(name)) if !saved && tag.errors.of_kind?(:name, :taken)
+        end
 
         if category.present? && current_user.present? && cat_id != tag.category && Pundit.policy!(current_user, tag).can_change_category?
           tag.update(category: cat_id, updater: current_user)
@@ -459,6 +466,10 @@ class Tag < ApplicationRecord
 
   def metatag?
     name.match?(/\A#{PostQueryBuilder::METATAGS.join("|")}:/i)
+  end
+
+  def rating?
+    name.match?(/\Arating:[#{Post::RATINGS.keys.join}]\z/o)
   end
 
   def self.model_restriction(table)

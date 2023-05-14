@@ -144,6 +144,10 @@ Rails.application.routes.draw do
   end
   resources :media_metadata, only: [:index]
 
+  resources :metrics, only: [:index], defaults: { format: :text } do
+    get "/instance", on: :collection, to: "metrics#instance", as: :instance
+  end
+
   resources :ai_tags, only: [:index]
   put "/ai_tags/:media_asset_id/:tag_id/tag", to: "ai_tags#tag", as: "tag_ai_tag"
 
@@ -334,6 +338,10 @@ Rails.application.routes.draw do
   get "/profile", to: "users#profile", as: :profile
   get "/settings", to: "users#settings", as: :settings
 
+  #get "/up", to: proc { [204, {}, []] }
+  get "/up" => "health#show", as: :rails_health_check
+  get "/up/postgres" => "health#postgres"
+  get "/up/redis" => "health#redis"
   get "/sitemap" => "static#sitemap_index"
   get "/opensearch" => "static#opensearch", :as => "opensearch"
   get "/privacy" => "static#privacy_policy", :as => "privacy_policy"
@@ -362,5 +370,6 @@ Rails.application.routes.draw do
   post "/mock/iqdb/query" => "mock_services#iqdb_query"
   get "/mock/autotagger/evaluate" => "mock_services#autotagger_evaluate", as: "mock_autotagger_evaluate"
 
+  match "/", to: "static#not_found", via: %i[post put patch delete trace]
   match "*other", to: "static#not_found", via: :all
 end

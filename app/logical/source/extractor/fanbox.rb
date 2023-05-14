@@ -107,32 +107,24 @@ module Source
         parsed_url.username || parsed_referer&.username
       end
 
-      def api_response
-        return {} if illust_id.blank?
-        resp = client.get("https://api.fanbox.cc/post.info?postId=#{illust_id}")
-        json_response = JSON.parse(resp)["body"]
-
-        # At some point in 2020 fanbox stopped hiding R18 posts from the api
-        # This check exists in case they ever start blocking them again
-        return {} if json_response["restrictedFor"] == 2 && json_response["body"].blank?
-
-        json_response
-      rescue JSON::ParserError
-        {}
+      def post_api_url
+        "https://api.fanbox.cc/post.info?postId=#{illust_id}" if illust_id.present?
       end
 
-      def artist_api_response
-        # Needed to fetch artist from cover pages
-        return {} if artist_id_from_url.blank?
-
-        resp = client.get("https://api.fanbox.cc/creator.get?userId=#{artist_id_from_url}")
-        return {} if resp.status != 200
-
-        resp.parse
+      def artist_api_url
+        "https://api.fanbox.cc/creator.get?userId=#{artist_id_from_url}" if artist_id_from_url.present?
       end
 
-      def client
-        @client ||= http.headers(Origin: "https://fanbox.cc").cache(1.minute)
+      memoize def api_response
+        http.cache(1.minute).parsed_get(post_api_url)&.dig(:body) || {}
+      end
+
+      memoize def artist_api_response
+        http.cache(1.minute).parsed_get(artist_api_url) || {}
+      end
+
+      def http
+        super.headers(Origin: "https://fanbox.cc")
       end
     end
   end
