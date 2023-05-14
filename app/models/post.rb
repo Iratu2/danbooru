@@ -32,12 +32,12 @@ class Post < ApplicationRecord
   before_validation :normalize_tags
   before_validation :blank_out_nonexistent_parents
   before_validation :remove_parent_loops
+  validate :uploader_is_not_limited, on: :create
+  validate :post_is_not_its_own_parent
   validates :md5, uniqueness: { message: ->(post, _data) { "Duplicate of post ##{Post.find_by_md5(post.md5).id}" }}, on: :create
   validates :rating, presence: { message: "not selected" }
   validates :rating, inclusion: { in: RATINGS.keys, message: "must be #{RATINGS.keys.map(&:upcase).to_sentence(last_word_connector: ", or ")}" }, if: -> { rating.present? }
   validates :source, length: { maximum: 1200 }
-  validate :post_is_not_its_own_parent
-  validate :uploader_is_not_limited, on: :create
   before_save :parse_pixiv_id
   before_save :added_tags_are_valid
   before_save :removed_tags_are_valid
@@ -80,7 +80,7 @@ class Post < ApplicationRecord
   scope :flagged, -> { where(is_flagged: true) }
   scope :banned, -> { where(is_banned: true) }
   # XXX conflict with deletable
-  scope :active, -> { where(is_pending: false, is_deleted: false, is_flagged: false).where.not(id: PostAppeal.pending) }
+  scope :active, -> { where(is_pending: false, is_deleted: false, is_flagged: false) }
   scope :appealed, -> { where(id: PostAppeal.pending.select(:post_id)) }
   scope :in_modqueue, -> { where_union(pending, flagged, appealed) }
   scope :expired, -> { pending.where("posts.created_at < ?", Danbooru.config.moderation_period.ago) }
@@ -164,7 +164,7 @@ class Post < ApplicationRecord
     def preview_file_url
       # XXX hack to return placeholder thumbnail for Flash files the /posts.json API.
       return Danbooru.config.storage_manager.file_url("/images/flash-preview.png") if media_asset.is_flash?
-      media_asset.variant(:preview).file_url
+      media_asset.variant(:"180x180").file_url
     end
 
     def file_url_for(user)
@@ -332,10 +332,6 @@ class Post < ApplicationRecord
 
     def added_tags
       tags - tags_was
-    end
-
-    def decrement_tag_post_counts
-      Tag.where(:name => tag_array).update_all("post_count = post_count - 1") if tag_array.any?
     end
 
     def update_tag_post_counts
@@ -769,7 +765,7 @@ class Post < ApplicationRecord
           ModAction.log("permanently deleted post ##{id} (md5=#{md5})", :post_permanent_delete, subject: nil, user: current_user)
 
           update_children_on_destroy
-          decrement_tag_post_counts
+          Tag.decrement_post_counts(tag_array)
           remove_from_all_pools
           remove_from_fav_groups
           media_asset.trash!(current_user, log: false)
@@ -1796,12 +1792,12 @@ class Post < ApplicationRecord
   concerning :IqdbMethods do
     def update_iqdb
       # performs IqdbClient.new.add_post(post)
-      IqdbAddPostJob.perform_later(self)
+      IqdbAddPostJob.perform_later(self) if IqdbClient.new.enabled?
     end
 
     def remove_iqdb
       # performs IqdbClient.new.remove(id)
-      IqdbRemovePostJob.perform_later(id)
+      IqdbRemovePostJob.perform_later(id) if IqdbClient.new.enabled?
     end
   end
 
@@ -1813,7 +1809,10 @@ class Post < ApplicationRecord
     end
 
     def uploader_is_not_limited
-      errors.add(:uploader, "have reached your upload limit. Please wait for your pending uploads to be approved before uploading more") if uploader.upload_limit.limited?
+      if uploader.upload_limit.limited?
+        errors.add(:uploader, "have reached your upload limit. Please wait for your pending uploads to be approved before uploading more")
+        throw :abort # Don't bother returning other validation errors if we're upload-limited.
+      end
     end
 
     def added_tags_are_valid

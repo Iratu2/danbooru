@@ -35,7 +35,8 @@ class IqdbClient
         file = file.tempfile
       elsif url.present?
         extractor = Source::Extractor.find(url)
-        raise Error, "Can't do reverse image search: #{url} has multiple images. Enter the URL of a single image." if extractor.image_urls.size > 1
+        raise Error, "Search failed: #{url} has multiple images. Enter the URL of a single image" if extractor.image_urls.size > 1
+        raise Error, "Search failed: #{url} has no images" if extractor.image_urls.size == 0
 
         download_url = extractor.image_urls.first
         file = Source::Extractor.find(download_url).download_file!(download_url)
@@ -44,7 +45,7 @@ class IqdbClient
       elsif file_url.present?
         file = Source::Extractor.find(file_url).download_file!(file_url)
       elsif post_id.present?
-        file = Post.find(post_id).file(:preview)
+        file = Post.find(post_id).file(:"180x180")
       elsif media_asset_id.present?
         file = MediaAsset.find(media_asset_id).variant("360x360").open_file
       end
@@ -86,7 +87,7 @@ class IqdbClient
   # @param post [Post] the post to add
   def add_post(post)
     return unless enabled? && post.has_preview?
-    preview_file = post.file(:preview)
+    preview_file = post.file(:"180x180")
     add(post.id, preview_file)
   end
 
@@ -101,7 +102,7 @@ class IqdbClient
     # @param file [File] the image to search
     def query_file(file, limit: 20)
       media_file = MediaFile.open(file)
-      preview = media_file.preview!(Danbooru.config.small_image_width, Danbooru.config.small_image_width)
+      preview = media_file.preview!(180, 180)
       file = HTTP::FormData::File.new(preview)
       request(:post, "query", form: { file: file }, params: { limit: limit })
     ensure

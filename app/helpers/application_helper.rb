@@ -263,7 +263,7 @@ module ApplicationHelper
 
   def search_form_for(url, classes: "inline-form", method: :get, &block)
     defaults = { required: false }
-    html_options = { autocomplete: "off", class: "search-form #{classes}" }
+    html_options = { autocomplete: "off", novalidate: true, class: "search-form #{classes}" }
 
     simple_form_for(:search, method: method, url: url, defaults: defaults, html: html_options) do |f|
       out = "".html_safe
@@ -273,16 +273,16 @@ module ApplicationHelper
     end
   end
 
-  def edit_form_for(model, validate: false, **options, &block)
+  def edit_form_for(model, validate: false, error_notice: true, warning_notice: true, **options, &block)
     options[:html] = { autocomplete: "off", novalidate: !validate, **options[:html].to_h }
     options[:authenticity_token] = true if options[:remote] == true
 
     simple_form_for(model, **options) do |form|
-      if model.try(:errors).try(:any?)
+      if error_notice && model.try(:errors).try(:any?)
         concat tag.div(format_text(model.errors.full_messages.join("; ")), class: "notice notice-error notice-small prose")
       end
 
-      if model.try(:warnings).try(:any?)
+      if warning_notice && model.try(:warnings).try(:any?)
         concat tag.div(format_text(model.warnings.full_messages.join("; ")), class: "notice notice-info notice-small prose")
       end
 

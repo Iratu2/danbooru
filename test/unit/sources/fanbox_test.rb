@@ -15,7 +15,12 @@ module Sources
         artist_commentary_desc: "˗ˋˏ Special Thanks ˎˊ˗   (敬称略)\n\n🎨キャラクターデザイン\n特急みかん  https://twitter.com/tokkyuumikan\n\n🤖3Dモデリング\n（仮）  https://twitter.com/Admiral_TMP\n\n⚙プログラミング\n神無月ユズカ  https://twitter.com/Kannaduki_Yzk\n\n🎧OP・EDミュージック\n卓球少年  https://twitter.com/takkyuu_s\n\n📻BGM\nC  https://twitter.com/nica2c\n\n🖌ロゴデザイン\nてづかもり  https://twitter.com/tezkamori\n\n🎨SDキャラクター\nAZU。  https://twitter.com/tokitou_aaa",
         page_url: "https://yanmi0308.fanbox.cc/posts/1141325",
         profile_url: "https://yanmi0308.fanbox.cc",
-        download_size: 431_225,
+        media_files: [
+          { file_size: 431_225 },
+          { file_size: 753_048 },
+          { file_size: 589_327 },
+          { file_size: 178_739 },
+        ],
         tags: [
           ["栗山やんみ", "https://fanbox.cc/tags/栗山やんみ"], ["VTuber", "https://fanbox.cc/tags/VTuber"], ["三面図", "https://fanbox.cc/tags/三面図"],
           ["イラスト", "https://fanbox.cc/tags/イラスト"], ["ロゴデザイン", "https://fanbox.cc/tags/ロゴデザイン"], ["モデリング", "https://fanbox.cc/tags/モデリング"],
@@ -37,7 +42,11 @@ module Sources
         artist_commentary_desc: "今週のらくがきまとめ\n\nhttps://downloads.fanbox.cc/images/post/209386/Q8rZ0iMHpcmJDACEzNGjTj9E.jpeg\n水着BBちゃん\n第一再臨もなかなかセクシー\nhttps://downloads.fanbox.cc/images/post/209386/8dRNHXkFqAwSt31W2Bg8fSdL.jpeg\nアラフィフ\n男キャラも描いていこうと練習中\n新宿での軽いキャラも好き\nhttps://downloads.fanbox.cc/images/post/209386/AGGWF0JxytFcNL2ybPKBaqp7.jpeg\nライダーさん\nつい眼鏡も描いてしまう\n\n＃FGO\n",
         page_url: "https://chanxco.fanbox.cc/posts/209386",
         profile_url: "https://chanxco.fanbox.cc",
-        download_size: 245_678,
+        media_files: [
+          { file_size: 245_678 },
+          { file_size: 320_056 },
+          { file_size: 666_681 },
+        ],
         artist_name: "chanxco",
         display_name: "CHANxCO"
       )
@@ -51,7 +60,7 @@ module Sources
         artist_commentary_desc: "今週のらくがきまとめ\n\nhttps://downloads.fanbox.cc/images/post/209386/Q8rZ0iMHpcmJDACEzNGjTj9E.jpeg\n水着BBちゃん\n第一再臨もなかなかセクシー\nhttps://downloads.fanbox.cc/images/post/209386/8dRNHXkFqAwSt31W2Bg8fSdL.jpeg\nアラフィフ\n男キャラも描いていこうと練習中\n新宿での軽いキャラも好き\nhttps://downloads.fanbox.cc/images/post/209386/AGGWF0JxytFcNL2ybPKBaqp7.jpeg\nライダーさん\nつい眼鏡も描いてしまう\n\n＃FGO\n",
         page_url: "https://chanxco.fanbox.cc/posts/209386",
         profile_url: "https://chanxco.fanbox.cc",
-        download_size: 320_056,
+        media_files: [{ file_size: 320_056 }],
         artist_name: "chanxco",
         display_name: "CHANxCO"
       )
@@ -89,7 +98,7 @@ module Sources
     context "A cover image" do
       strategy_should_work(
         "https://pixiv.pximg.net/c/1620x580_90_a2_g5/fanbox/public/images/creator/1566167/cover/pYOm2wWFyzffzZaty7fbHiJ1.jpeg",
-        download_size: 562_582,
+        media_files: [{ file_size: 562_582 }],
         profile_url: "https://omu001.fanbox.cc"
       )
     end
@@ -106,6 +115,43 @@ module Sources
       strategy_should_work(
         "https://pixiv.pximg.net/c/400x400_90_a2_g5/fanbox/public/images/creator/29999491/profile/Ew6fOhLGPvmUcwU6FyH8JAMX.jpeg",
         profile_url: "https://deaver0211.fanbox.cc"
+      )
+    end
+
+    # These posts are still accessible in the API even though the HTML returns an error.
+    context "An 'access is restricted for this user' Fanbox post" do
+      strategy_should_work(
+        "https://eclipsehake.fanbox.cc/posts/4246830",
+        page_url: "https://eclipsehake.fanbox.cc/posts/4246830",
+        profile_url: "https://eclipsehake.fanbox.cc",
+        image_urls: ["https://downloads.fanbox.cc/images/post/4246830/XUW76l3mT1yxkjbMTVeMow4w.jpeg"],
+        artist_name: "eclipsehake",
+        tag_name: "eclipsehake",
+        artist_commentary_title: "シアリュ―",
+        artist_commentary_desc: <<~EOS.chomp,
+          🐉👻♂
+
+          臆病な性格 / 物音に敏感
+
+          175cm　享年20歳
+
+          旅パ会社の期待の新人。享年20歳(推定)のアンデッド。生前の記憶が殆ど無く彷徨っていた所をスカウトされ就職。霊符で式神的なモノを呼び出して戦う。お人好しで頼まれ事は断れないタイプ。
+        EOS
+        tags: [],
+      )
+    end
+
+    context "A deleted Fanbox post" do
+      strategy_should_work(
+        "https://wakura081.fanbox.cc/posts/4923490",
+        page_url: "https://wakura081.fanbox.cc/posts/4923490",
+        profile_url: "https://wakura081.fanbox.cc",
+        image_urls: [],
+        artist_name: "wakura081",
+        tag_name: "wakura081",
+        artist_commentary_title: nil,
+        artist_commentary_desc: nil,
+        tags: [],
       )
     end
 
@@ -128,6 +174,12 @@ module Sources
       assert(Source::URL.profile_url?("https://www.fanbox.cc/@tsukiori"))
       assert_not(Source::URL.profile_url?("https://www.fanbox.cc"))
       assert_not(Source::URL.profile_url?("https://fanbox.cc"))
+
+      assert_equal("omu001", Source::URL.parse("https://fanbox.cc/@omu001").username)
+      assert_equal("omu001", Source::URL.parse("https://www.fanbox.cc/@omu001").username)
+      assert_equal("omu001", Source::URL.parse("https://www.fanbox.cc/@omu001/posts/39714").username)
+      assert_equal("omu001", Source::URL.parse("https://fanbox.cc/@omu001/posts/39714").username)
+      assert_equal("omu001", Source::URL.parse("https://omu001.fanbox.cc/posts/39714").username)
     end
   end
 end

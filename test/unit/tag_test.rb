@@ -68,10 +68,10 @@ class TagTest < ActiveSupport::TestCase
 
     should "reset its category after updating" do
       tag = FactoryBot.create(:artist_tag)
-      assert_equal(Tag.categories.artist, Cache.get("tc:#{Cache.hash(tag.name)}"))
+      assert_equal(Tag.categories.artist, Cache.get("tag-category:#{Cache.hash(tag.name)}"))
 
       tag.update!(category: Tag.categories.copyright, updater: create(:user))
-      assert_equal(Tag.categories.copyright, Cache.get("tc:#{Cache.hash(tag.name)}"))
+      assert_equal(Tag.categories.copyright, Cache.get("tag-category:#{Cache.hash(tag.name)}"))
     end
 
     context "not be settable to an invalid category" do
@@ -211,6 +211,7 @@ class TagTest < ActiveSupport::TestCase
         tag = Tag.find_or_create_by_name("hoge")
         assert_equal("hoge", tag.name)
         assert_equal(Tag.categories.general, tag.category)
+        assert_equal(0, tag.versions.count)
       end
     end
 
@@ -219,7 +220,15 @@ class TagTest < ActiveSupport::TestCase
         tag = Tag.find_or_create_by_name("hoge", category: "artist", current_user: @builder)
         assert_equal("hoge", tag.name)
         assert_equal(Tag.categories.artist, tag.category)
+        assert_equal(0, tag.versions.count)
       end
+    end
+
+    should "not raise an exception if the tag name is invalid" do
+      tag = Tag.find_or_create_by_name("foo__bar")
+
+      assert_equal(false, tag.valid?)
+      assert_equal(["'foo__bar' cannot contain consecutive underscores"], tag.errors[:name])
     end
 
     should "parse tag names into words" do

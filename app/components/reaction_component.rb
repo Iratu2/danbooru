@@ -14,7 +14,7 @@ class ReactionComponent < ApplicationComponent
   end
 
   memoize def distinct_reactions
-    model.reactions.group_by(&:reaction_id)
+    model.reactions.select { |reaction| reaction.reaction_id.in?(Reaction::REACTION_IDS) }.group_by(&:reaction_id)
   end
 
   def reaction_by_current_user(reaction_id)
@@ -26,6 +26,7 @@ class ReactionComponent < ApplicationComponent
   end
 
   def reaction_icon(reaction_id)
-    image_tag(Reaction::REACTIONS.dig(reaction_id, 1), class: "h-6")
+    reaction = Reaction::REACTIONS[reaction_id]
+    image_tag(reaction[1], class: "h-6", title: ":#{reaction[0]}:")
   end
 end

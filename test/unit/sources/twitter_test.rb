@@ -11,7 +11,11 @@ module Sources
           "https://pbs.twimg.com/media/DRfKHioVoAALRlK.jpg:orig",
           "https://pbs.twimg.com/media/DRfKHgHU8AE7alV.jpg:orig",
         ],
-        download_size: 275_713,
+        media_files: [
+          { file_size: 275_713 },
+          { file_size: 207_248 },
+          { file_size: 188_553 },
+        ],
         profile_url: "https://twitter.com/motty08111213",
         artist_name: "丸茂_えのぐマネージャー",
         tag_name: "motty08111213",
@@ -36,7 +40,6 @@ module Sources
           "https://pbs.twimg.com/media/DRfKHioVoAALRlK.jpg:orig",
           "https://pbs.twimg.com/media/DRfKHgHU8AE7alV.jpg:orig",
         ],
-        download_size: 275_713,
         profile_url: "https://twitter.com/motty08111213",
         artist_name: "丸茂_えのぐマネージャー",
         tag_name: "motty08111213",
@@ -53,7 +56,6 @@ module Sources
           "https://pbs.twimg.com/media/DRfKHioVoAALRlK.jpg:orig",
           "https://pbs.twimg.com/media/DRfKHgHU8AE7alV.jpg:orig",
         ],
-        download_size: 275_713,
         profile_url: "https://twitter.com/motty08111213",
         artist_name: "丸茂_えのぐマネージャー",
         tag_name: "motty08111213",
@@ -66,7 +68,7 @@ module Sources
         "https://twitter.com/CincinnatiZoo/status/859073537713328129",
         image_urls: ["https://video.twimg.com/ext_tw_video/859073467769126913/pu/vid/1280x720/cPGgVROXHy3yrK6u.mp4"],
         page_url: "https://twitter.com/CincinnatiZoo/status/859073537713328129",
-        download_size: 8_602_983,
+        media_files: [{ file_size: 8_602_983 }],
         dtext_artist_commentary_desc: <<~EOS.chomp
           Fiona loves playing in the hose water just like her parents! 💦 "#TeamFiona":[https://twitter.com/hashtag/TeamFiona] "#fionafix":[https://twitter.com/hashtag/fionafix]
         EOS
@@ -78,7 +80,7 @@ module Sources
       strategy_should_work(
         "https://pbs.twimg.com/tweet_video_thumb/ETkN_L3X0AMy1aT.jpg:small",
         image_urls: ["https://pbs.twimg.com/tweet_video_thumb/ETkN_L3X0AMy1aT.jpg:orig"],
-        download_size: 18_058
+        media_files: [{ file_size: 18_058 }]
       )
     end
 
@@ -86,7 +88,7 @@ module Sources
       strategy_should_work(
         "https://pbs.twimg.com/ext_tw_video_thumb/1578376127801761793/pu/img/oGcUqPnwRYYhk-gi.jpg:small",
         image_urls: ["https://pbs.twimg.com/ext_tw_video_thumb/1578376127801761793/pu/img/oGcUqPnwRYYhk-gi.jpg:orig"],
-        download_size: 243_227
+        media_files: [{ file_size: 243_227 }]
       )
     end
 
@@ -95,7 +97,7 @@ module Sources
       strategy_should_work(
         "https://pbs.twimg.com/amplify_video_thumb/1215590775364259840/img/lolCkEEioFZTb5dl.jpg:small",
         image_urls: ["https://pbs.twimg.com/amplify_video_thumb/1215590775364259840/img/lolCkEEioFZTb5dl.jpg:orig"],
-        download_size: 106_942
+        media_files: [{ file_size: 106_942 }]
       )
     end
 
@@ -103,7 +105,7 @@ module Sources
       strategy_should_work(
         "https://twitter.com/i/web/status/1252517866059907073",
         image_urls: ["https://video.twimg.com/tweet_video/EWHWVrmVcAAp4Vw.mp4"],
-        download_size: 542_833,
+        media_files: [{ file_size: 542_833 }],
         artist_commentary_desc: "https://t.co/gyTKOSBOQ7",
         dtext_artist_commentary_desc: ""
       )
@@ -129,12 +131,121 @@ module Sources
       strategy_should_work(
         "https://mobile.twitter.com/Strangestone/status/556440271961858051",
         image_urls: ["https://pbs.twimg.com/media/B7jfc1JCcAEyeJh.png:orig"],
+        media_files: [{ file_size: 280_150 }],
         page_url: "https://twitter.com/Strangestone/status/556440271961858051",
         profile_url: "https://twitter.com/Strangestone",
         profile_urls: ["https://twitter.com/Strangestone", "https://twitter.com/intent/user?user_id=93332575"],
         tag_name: "Strangestone",
         artist_name: "比村奇石",
         dtext_artist_commentary_desc: "ブレザーが描きたかったのでJK鈴谷"
+      )
+    end
+
+    context "A NSFW tweet" do
+      strategy_should_work(
+        "https://twitter.com/shoka_bg/status/1644344692107268097",
+        image_urls: ["https://pbs.twimg.com/media/FtHbwvuaQAAxQ8v.jpg:orig"],
+        page_url: "https://twitter.com/shoka_bg/status/1644344692107268097",
+        profile_url: "https://twitter.com/shoka_bg",
+        profile_urls: ["https://twitter.com/shoka_bg", "https://twitter.com/intent/user?user_id=1109709388049051649"],
+        tag_name: "shoka_bg",
+        tags: %w[ブルアカ],
+        artist_name: "shooka",
+        dtext_artist_commentary_desc: <<~EOS.chomp
+          風紀委員の実態
+          "#ブルアカ":[https://twitter.com/hashtag/ブルアカ]
+        EOS
+      )
+    end
+
+    context "A long tweet with >280 characters" do
+      strategy_should_work(
+        "https://twitter.com/loveremi_razoku/status/1637647185969041408",
+        image_urls: ["https://pbs.twimg.com/media/FroXbmIaIAEuC1B.jpg:orig"],
+        page_url: "https://twitter.com/loveremi_razoku/status/1637647185969041408",
+        profile_url: "https://twitter.com/loveremi_razoku",
+        profile_urls: ["https://twitter.com/loveremi_razoku", "https://twitter.com/intent/user?user_id=293443351"],
+        tag_name: "loveremi_razoku",
+        artist_name: "ラブレミ@うぉるやふぁんくらぶ",
+        tags: [],
+        dtext_artist_commentary_desc: <<~EOS.chomp
+          「ラリアッ党の野望チョコ」
+          commission ラリアット さん"@rariatoo":[https://twitter.com/rariatoo]
+
+          シゲ「カッパ、お前何やった?」
+
+          カッパ「オイラ、ルディちゃんでヤンス!エロいでヤンス!」
+
+          シゲ「コイツ、ほんまエロガッパやな…ワイはノス＆ザクロや!これでコンプやで!」
+
+          シゲ「ミツ、お前は?」
+
+          ミツはうつむいて何も言わない
+          シゲはミツのシールを覗き込んだ
+
+          シゲ「【ウチはムーンライト!姐さん方にたてつくヤツはいてこましたるでェ!】か…今月の一般公募枠やん!粋なファンサやな…」
+
+          カッパ「ゲヘヘ!この子もエロいでヤンス〜!」
+
+          シゲ「そういやお前もハガキ、書いてたよな…ん?泣いとるんか?ラムネ飲みすぎて腹でも壊したか?」
+
+          カッパはシゲの肩に手を置き、いつになくきれいな目で首を横に振っていた
+          その瞬間、シゲもすべてを察した
+
+          シゲ「ミツ…ラムネおごったるさかい、今日はこの子の事存分に語り合おうや…」
+        EOS
+      )
+    end
+
+    context "A tweet that is in reply to another tweet" do
+      strategy_should_work(
+        "https://twitter.com/emurin/status/912861472916508672",
+        image_urls: ["https://pbs.twimg.com/media/DKsikYaU8AEEMKU.jpg:orig"],
+        page_url: "https://twitter.com/emurin/status/912861472916508672",
+        profile_url: "https://twitter.com/emurin",
+        profile_urls: ["https://twitter.com/emurin", "https://twitter.com/intent/user?user_id=30642502"],
+        tag_name: "emurin",
+        tags: %w[odaibako],
+        artist_name: "えむりん",
+        dtext_artist_commentary_desc: <<~EOS.chomp
+          > ほわほわ系クーデレギロチンおねがいします <https://odaibako.net/detail/request/277bac5ea1b34b1abc7ac21dd1031690> "#odaibako":[https://twitter.com/hashtag/odaibako]
+
+          セカコスにしたらギロクロ感がなくなった…
+        EOS
+      )
+    end
+
+    context "A tweet that from an account that is set to followers-only" do
+      strategy_should_work(
+        "https://twitter.com/enaiC31/status/1644997451626221568",
+        image_urls: ["https://pbs.twimg.com/media/FtQ0ddcaAAAkSvS.jpg:orig"],
+        page_url: "https://twitter.com/enaiC31/status/1644997451626221568",
+        profile_url: "https://twitter.com/enaiC31",
+        profile_urls: ["https://twitter.com/enaiC31", "https://twitter.com/intent/user?user_id=1444938344891240452"],
+        tag_name: "enaiC31",
+        tags: [],
+        artist_name: "えない🚀",
+        dtext_artist_commentary_desc: <<~EOS.chomp
+          すろぉもぉしょん💊
+        EOS
+      )
+    end
+
+    context "A 'https://pbs.twimg.com/media/*:large' url" do
+      strategy_should_work(
+        "https://pbs.twimg.com/media/B4HSEP5CUAA4xyu.png:large",
+        referer: "https://twitter.com/nounproject/status/540944400767922176",
+        image_urls: ["https://pbs.twimg.com/media/B4HSEP5CUAA4xyu.png:orig"],
+        media_files: [{ file_size: 9800 }],
+        page_url: "https://twitter.com/nounproject/status/540944400767922176",
+        profile_url: "https://twitter.com/nounproject/status/540944400767922176",
+        profile_urls: ["https://twitter.com/nounproject", "https://twitter.com/intent/user?user_id=88996186"],
+        tag_name: "nounproject",
+        tags: [],
+        artist_name: "Noun Project",
+        dtext_artist_commentary_desc: <<~EOS.chomp
+          More is better. Unlimited is best. NounPro Members now get unlimited icon downloads <http://bit.ly/1yn2KWn>
+        EOS
       )
     end
 
@@ -151,7 +262,7 @@ module Sources
       strategy_should_work(
         "https://pbs.twimg.com/media/EBGp2YdUYAA19Uj?format=jpg&name=small",
         image_urls: ["https://pbs.twimg.com/media/EBGp2YdUYAA19Uj.jpg:orig"],
-        download_size: 229_661,
+        media_files: [{ file_size: 229_661 }],
         profile_url: nil
       )
     end
@@ -160,7 +271,7 @@ module Sources
       strategy_should_work(
         "https://pbs.twimg.com/media/EAjc-OWVAAAxAgQ.jpg",
         image_urls: ["https://pbs.twimg.com/media/EAjc-OWVAAAxAgQ.jpg:orig"],
-        download_size: 842_373,
+        media_files: [{ file_size: 842_373 }],
         profile_url: nil
       )
     end
@@ -189,7 +300,7 @@ module Sources
       strategy_should_work(
         "https://pbs.twimg.com/profile_banners/780804311529906176/1475001696",
         image_urls: ["https://pbs.twimg.com/profile_banners/780804311529906176/1475001696/1500x500"],
-        download_size: 128_141,
+        media_files: [{ file_size: 128_141 }],
         profile_url: nil
         # profile_url: "https://twitter.com/intent/user?user_id=780804311529906176"
         # XXX we COULD fully support these by setting the page_url to https://twitter.com/Kekeflipnote/header_photo, but it's a lot of work for a niche case
@@ -200,7 +311,7 @@ module Sources
       strategy_should_work(
         "https://pbs.twimg.com/profile_banners/780804311529906176/1475001696/600x200",
         image_urls: ["https://pbs.twimg.com/profile_banners/780804311529906176/1475001696/1500x500"],
-        download_size: 128_141,
+        media_files: [{ file_size: 128_141 }],
         profile_url: nil
       )
     end
@@ -286,8 +397,10 @@ module Sources
       assert(Source::URL.page_url?("https://twitter.com/BOW999/status/1261877313349640194"))
       assert(Source::URL.page_url?("https://twitter.com/BOW999/status/1261877313349640194/photo/1"))
       assert(Source::URL.page_url?("https://twitter.com/BOW999/status/1261877313349640194?s=19"))
+      assert(Source::URL.page_url?("https://twitter.com/@BOW999/status/1261877313349640194"))
 
       assert(Source::URL.profile_url?("https://www.twitter.com/irt_5433"))
+      assert(Source::URL.profile_url?("https://www.twitter.com/@irt_5433"))
       assert(Source::URL.profile_url?("https://www.twitter.com/irt_5433/likes"))
       assert(Source::URL.profile_url?("https://twitter.com/intent/user?user_id=1485229827984531457"))
       assert(Source::URL.profile_url?("https://twitter.com/intent/user?screen_name=ryuudog_NFT"))
@@ -298,6 +411,8 @@ module Sources
       assert_nil(Source::URL.parse("https://twitter.com/i/status/1261877313349640194").username)
       assert_nil(Source::URL.parse("https://twitter.com/i/web/status/1261877313349640194").username)
       assert_equal("BOW999", Source::URL.parse("https://twitter.com/BOW999/status/1261877313349640194").username)
+      assert_equal("BOW999", Source::URL.parse("https://twitter.com/@BOW999/status/1261877313349640194").username)
+      assert_equal("BOW999", Source::URL.parse("https://twitter.com/@BOW999").username)
     end
   end
 end

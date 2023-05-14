@@ -148,6 +148,7 @@ class User < ApplicationRecord
   has_many :uploads, foreign_key: :uploader_id, dependent: :destroy
   has_many :upload_media_assets, through: :uploads, dependent: :destroy
   has_many :mod_actions, as: :subject, dependent: :destroy
+  has_many :reactions, as: :model, dependent: :destroy
   belongs_to :inviter, class_name: "User", optional: true
 
   accepts_nested_attributes_for :email_address, reject_if: :all_blank, allow_destroy: true
@@ -474,14 +475,9 @@ class User < ApplicationRecord
       post_flags.active.count >= 5
     end
 
-    # Flags are unlimited if you're an approver or you have at least 30 flags
-    # in the last 3 months and have a 70% flag success rate.
+    # Flags are unlimited if you're an approver.
     def has_unlimited_flags?
       return true if is_approver?
-
-      recent_flags = post_flags.where("created_at >= ?", 3.months.ago)
-      flag_ratio = recent_flags.succeeded.count / recent_flags.count.to_f
-      recent_flags.count >= 30 && flag_ratio >= 0.70
     end
 
     def upload_limit
