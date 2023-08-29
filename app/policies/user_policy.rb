@@ -43,7 +43,7 @@ class UserPolicy < ApplicationPolicy
   end
 
   def can_enable_private_favorites?
-    user.is_gold?
+    user.is_member?
   end
 
   def permitted_attributes_for_create
