@@ -851,6 +851,24 @@ CREATE TABLE public.good_job_batches (
 
 
 --
+-- Name: good_job_executions; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.good_job_executions (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    active_job_id uuid NOT NULL,
+    job_class text,
+    queue_name text,
+    serialized_params jsonb,
+    scheduled_at timestamp(6) without time zone,
+    finished_at timestamp(6) without time zone,
+    error text
+);
+
+
+--
 -- Name: good_job_processes; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -896,8 +914,12 @@ CREATE TABLE public.good_jobs (
     retried_good_job_id uuid,
     cron_at timestamp without time zone,
     batch_id uuid,
-    batch_callback_id uuid
+    batch_callback_id uuid,
+    is_discrete boolean,
+    executions_count integer,
+    job_class text
 );
+ALTER TABLE ONLY public.good_jobs ALTER COLUMN finished_at SET STATISTICS 1000;
 
 
 --
@@ -2116,7 +2138,11 @@ CREATE TABLE public.user_events (
     updated_at timestamp(6) without time zone NOT NULL,
     user_id integer NOT NULL,
     user_session_id integer NOT NULL,
-    category integer NOT NULL
+    category integer NOT NULL,
+    ip_addr inet,
+    session_id uuid,
+    user_agent character varying,
+    metadata jsonb
 );
 
 
@@ -3214,6 +3240,14 @@ ALTER TABLE ONLY public.forum_topics
 
 ALTER TABLE ONLY public.good_job_batches
     ADD CONSTRAINT good_job_batches_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: good_job_executions good_job_executions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.good_job_executions
+    ADD CONSTRAINT good_job_executions_pkey PRIMARY KEY (id);
 
 
 --
@@ -4369,6 +4403,13 @@ CREATE INDEX index_forum_topics_on_title_tsvector ON public.forum_topics USING g
 --
 
 CREATE INDEX index_forum_topics_on_updated_at ON public.forum_topics USING btree (updated_at);
+
+
+--
+-- Name: index_good_job_executions_on_active_job_id_and_created_at; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_good_job_executions_on_active_job_id_and_created_at ON public.good_job_executions USING btree (active_job_id, created_at);
 
 
 --
@@ -5675,10 +5716,38 @@ CREATE INDEX index_user_events_on_created_at ON public.user_events USING btree (
 
 
 --
+-- Name: index_user_events_on_ip_addr; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_user_events_on_ip_addr ON public.user_events USING btree (ip_addr);
+
+
+--
+-- Name: index_user_events_on_metadata; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_user_events_on_metadata ON public.user_events USING gin (metadata);
+
+
+--
+-- Name: index_user_events_on_session_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_user_events_on_session_id ON public.user_events USING btree (session_id);
+
+
+--
 -- Name: index_user_events_on_updated_at; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE INDEX index_user_events_on_updated_at ON public.user_events USING btree (updated_at);
+
+
+--
+-- Name: index_user_events_on_user_agent; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_user_events_on_user_agent ON public.user_events USING gin (user_agent public.gin_trgm_ops);
 
 
 --
@@ -7034,6 +7103,8 @@ INSERT INTO "schema_migrations" (version) VALUES
 ('20230309014439'),
 ('20230325143851'),
 ('20230401013159'),
-('20230409141638');
+('20230409141638'),
+('20230522005908'),
+('20230524201206');
 
 
